@@ -11,6 +11,7 @@
  *************************************************************************/
 
 #include "TVirtualMCApplication.h"
+#include "TMCSelectionCriteria.h"
 #include "TError.h"
 
 /** \class TVirtualMCApplication
@@ -31,14 +32,14 @@ TMCThreadLocal TVirtualMCApplication* TVirtualMCApplication::fgInstance = 0;
 
 TVirtualMCApplication::TVirtualMCApplication(const char *name,
                                              const char *title)
-  : TNamed(name,title)
+  : TNamed(name,title), fTMCHandler(new TMCHandler( "defaultMCHandler", ""))
 {
    if (fgInstance) {
       Fatal("TVirtualMCApplication",
             "Attempt to create two instances of singleton.");
    }
-
    fgInstance = this;
+   fTMCHandler = &TMCHandler::Instance();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -60,6 +61,17 @@ TVirtualMCApplication::TVirtualMCApplication()
 TVirtualMCApplication::~TVirtualMCApplication()
 {
    fgInstance = 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Registering a new VMC
+///
+
+void TVirtualMCApplication::RegisterMC( TVirtualMC* mc, TMCCondition* condition )
+{
+   fMCEngines.push_back(mc);
+   fConditions.push_back(condition);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

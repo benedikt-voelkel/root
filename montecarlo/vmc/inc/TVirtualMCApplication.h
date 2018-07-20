@@ -23,6 +23,8 @@
 
 #include "TMCtls.h"
 
+class TMCSelectionCriteria;
+
 class TVirtualMCApplication : public TNamed {
 
 public:
@@ -41,6 +43,11 @@ public:
    //
    // methods
    //
+
+   /// Register a transport engine
+   void RegisterMC(TVirtualMC* mc, TMCSelectionCriteria* selectionCriteria);
+   /// Get the current transport engine
+   TVirtualMC* GetMC() const;
 
    /// Construct user geometry
    virtual void ConstructGeometry() = 0;
@@ -74,7 +81,7 @@ public:
    virtual void PreTrack() = 0;
 
    /// Define action at each step
-   virtual void Stepping() = 0;
+   virtual void UserStepping() = 0;
 
    /// Define actions at the end of each track
    virtual void PostTrack() = 0;
@@ -121,6 +128,13 @@ public:
    virtual void Merge(TVirtualMCApplication* /*localMCApplication*/) {}
 
 private:
+  void Stepping()
+  {
+    UserStepping();
+    fTMCHandler->UpdateStacks();
+  }
+private:
+   TMCHandler* fTMCHandler;
    // static data members
 #if !defined(__CINT__)
    static TMCThreadLocal TVirtualMCApplication* fgInstance; ///< Singleton instance
@@ -137,4 +151,3 @@ inline void TVirtualMCApplication::Field(const Double_t* /*x*/, Double_t* b) con
 }
 
 #endif //ROOT_TVirtualMCApplication
-

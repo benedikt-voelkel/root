@@ -20,11 +20,13 @@
 //                                                                           //
 //                                                                           //
 ///////////////////////////////////////////////////////////////////////////////
+#include <vector>
 
 #include "TMCProcess.h"
 #include "TMCParticleType.h"
 #include "TMCOptical.h"
 #include "TMCtls.h"
+#include "TMCSelectionCriteria.h"
 #include "TVirtualMCApplication.h"
 #include "TVirtualMCStack.h"
 #include "TVirtualMCDecayer.h"
@@ -45,7 +47,9 @@ public:
    ///
    /// isRootGeometrySupported = True if implementation of TVirtualMC
    ///        supports geometry defined with TGeo
-   TVirtualMC(const char *name, const char *title,
+   //TVirtualMC(const char *name, const char *title,
+   //           Bool_t isRootGeometrySupported = kFALSE);
+   TVirtualMC(const char *name, const char *title, TMCSelectionCriteria *selectionCriteria,
               Bool_t isRootGeometrySupported = kFALSE);
 
    /// Default constructor
@@ -871,13 +875,13 @@ protected:
 private:
    TVirtualMC(const TVirtualMC &mc);
    TVirtualMC & operator=(const TVirtualMC &);
-
+/*
 #if !defined(__CINT__)
-   static TMCThreadLocal TVirtualMC*  fgMC; ///< Monte Carlo singleton instance
+   static TMCThreadLocal TVirtualMC* fgMC; ///< Monte Carlo singleton instance
 #else
    static                TVirtualMC*  fgMC; ///< Monte Carlo singleton instance
 #endif
-
+*/
    TVirtualMCStack*    fStack;   //!< Particles stack
    TVirtualMCDecayer*  fDecayer; //!< External decayer
    TRandom*            fRandom;  //!< Random number generator
@@ -905,4 +909,3 @@ inline void TVirtualMC::TrackMomentum(Float_t & /*px*/, Float_t & /*py*/, Float_
 #define gMC (TVirtualMC::GetMC())
 
 #endif //ROOT_TVirtualMC
-

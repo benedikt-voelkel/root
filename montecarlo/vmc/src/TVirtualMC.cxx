@@ -30,14 +30,13 @@ when processing a ROOT macro where the concrete Monte Carlo is instantiated.
 
 ClassImp(TVirtualMC);
 
-TMCThreadLocal TVirtualMC* TVirtualMC::fgMC=0;
+//TMCThreadLocal std::vector<TVirtualMC*>  TVirtualMC::fgMC = {};
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
 /// Standard constructor
 ///
-
-TVirtualMC::TVirtualMC(const char *name, const char *title,
+TVirtualMC::TVirtualMC(const char *name, const char *title, TMCSelectionCriteria* selectionCriteria,
                        Bool_t /*isRootGeometrySupported*/)
   : TNamed(name,title),
     fApplication(0),
@@ -46,19 +45,15 @@ TVirtualMC::TVirtualMC(const char *name, const char *title,
     fRandom(0),
     fMagField(0)
 {
-   if(fgMC) {
-      Warning("TVirtualMC","Cannot initialise twice MonteCarlo class");
-   } else {
-      fgMC=this;
-
       fApplication = TVirtualMCApplication::Instance();
+
 
       if (!fApplication) {
          Error("TVirtualMC", "No user MC application is defined.");
       }
+      fApplication->RegisterMC(this, selectionCriteria);
 
       fRandom = gRandom;
-   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -83,7 +78,8 @@ TVirtualMC::TVirtualMC()
 
 TVirtualMC::~TVirtualMC()
 {
-   fgMC=0;
+
+  fgMC=0;
 }
 
 //
@@ -96,7 +92,7 @@ TVirtualMC::~TVirtualMC()
 ///
 
 TVirtualMC* TVirtualMC::GetMC() {
-   return fgMC;
+   return fApplication->GetMC();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
