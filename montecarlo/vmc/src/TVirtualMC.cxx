@@ -10,7 +10,11 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
+#include <iostream>
+
 #include "TVirtualMC.h"
+#include "TVirtualMCApplication.h"
+
 
 /** \class TVirtualMC
     \ingroup vmc
@@ -30,13 +34,11 @@ when processing a ROOT macro where the concrete Monte Carlo is instantiated.
 
 ClassImp(TVirtualMC);
 
-//TMCThreadLocal std::vector<TVirtualMC*>  TVirtualMC::fgMC = {};
-
 ////////////////////////////////////////////////////////////////////////////////
 ///
 /// Standard constructor
 ///
-TVirtualMC::TVirtualMC(const char *name, const char *title, TMCSelectionCriteria* selectionCriteria,
+TVirtualMC::TVirtualMC(const char *name, const char *title,
                        Bool_t /*isRootGeometrySupported*/)
   : TNamed(name,title),
     fApplication(0),
@@ -47,11 +49,10 @@ TVirtualMC::TVirtualMC(const char *name, const char *title, TMCSelectionCriteria
 {
       fApplication = TVirtualMCApplication::Instance();
 
-
       if (!fApplication) {
          Error("TVirtualMC", "No user MC application is defined.");
       }
-      fApplication->RegisterMC(this, selectionCriteria);
+      fApplication->RegisterMC(this);
 
       fRandom = gRandom;
 }
@@ -78,8 +79,7 @@ TVirtualMC::TVirtualMC()
 
 TVirtualMC::~TVirtualMC()
 {
-
-  fgMC=0;
+  std::cout << "VMC is destrcuted" << std::endl;
 }
 
 //
@@ -92,7 +92,7 @@ TVirtualMC::~TVirtualMC()
 ///
 
 TVirtualMC* TVirtualMC::GetMC() {
-   return fApplication->GetMC();
+   return TVirtualMCApplication::GetMC();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

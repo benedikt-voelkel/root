@@ -1,7 +1,5 @@
 
 #include "TMCSelectionCriteria.h"
-#include "TError.h"
-
 
 ClassImp(TMCSelectionCriteria);
 

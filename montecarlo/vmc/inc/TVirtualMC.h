@@ -26,7 +26,6 @@
 #include "TMCParticleType.h"
 #include "TMCOptical.h"
 #include "TMCtls.h"
-#include "TMCSelectionCriteria.h"
 #include "TVirtualMCApplication.h"
 #include "TVirtualMCStack.h"
 #include "TVirtualMCDecayer.h"
@@ -49,7 +48,7 @@ public:
    ///        supports geometry defined with TGeo
    //TVirtualMC(const char *name, const char *title,
    //           Bool_t isRootGeometrySupported = kFALSE);
-   TVirtualMC(const char *name, const char *title, TMCSelectionCriteria *selectionCriteria,
+   TVirtualMC(const char *name, const char *title,
               Bool_t isRootGeometrySupported = kFALSE);
 
    /// Default constructor

@@ -20,10 +20,7 @@
 #pragma link C++ class  TVirtualMCStack+;
 #pragma link C++ class  TMCVerbose+;
 #pragma link C++ class  TGeoMCGeometry+;
+#pragma link C++ class  TMCSelectionCriteria+;
+
 
 #endif
-
-
-
-
-

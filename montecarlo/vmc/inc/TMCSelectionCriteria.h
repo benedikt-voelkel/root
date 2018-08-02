@@ -3,6 +3,8 @@
 
 #include <vector>
 
+#include "TNamed.h"
+
 class TMCSelectionCriteria : TNamed
 {
 	public:
@@ -11,7 +13,7 @@ class TMCSelectionCriteria : TNamed
 		{
 			fModules.clear();
 		}
-		/* 1. Set selection criteria for 
+		/* 1. Set selection criteria for
 		 * 2. Can check for overlapping criteria hence looking for conflicts
 		 */
 		/// Add a module specified by its name which can be a sensitive detector
@@ -23,8 +25,9 @@ class TMCSelectionCriteria : TNamed
 
 	private:
 		/// Don't copy or default construct this
+		// \note do it like that temporarily but move to ...() = delete. Right now, ROOT complains when doing that since the default constructor seems to be needed
 		TMCSelectionCriteria();
-		TMCSelectionCriteria( const TMCConstraint& );
+		TMCSelectionCriteria( const TMCSelectionCriteria& );
 
 	private:
 		/// modules which are simulated

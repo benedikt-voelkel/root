@@ -20,10 +20,11 @@
 
 #include "TNamed.h"
 #include "TMath.h"
+//#include "TVirtualMC.h"
 
 #include "TMCtls.h"
 
-class TMCSelectionCriteria;
+class TVirtualMC;
 
 class TVirtualMCApplication : public TNamed {
 
@@ -45,9 +46,9 @@ public:
    //
 
    /// Register a transport engine
-   void RegisterMC(TVirtualMC* mc, TMCSelectionCriteria* selectionCriteria);
+   void RegisterMC(TVirtualMC* mc);
    /// Get the current transport engine
-   TVirtualMC* GetMC() const;
+   static TVirtualMC* GetMC();
 
    /// Construct user geometry
    virtual void ConstructGeometry() = 0;
@@ -81,7 +82,7 @@ public:
    virtual void PreTrack() = 0;
 
    /// Define action at each step
-   virtual void UserStepping() = 0;
+   virtual void Stepping() = 0;
 
    /// Define actions at the end of each track
    virtual void PostTrack() = 0;
@@ -127,20 +128,31 @@ public:
    /// Merge the data accumulated on workers to the master if needed
    virtual void Merge(TVirtualMCApplication* /*localMCApplication*/) {}
 
+protected:
+  /// get the next responsible engine in the chain. Assuming the engines are run consecutively
+  /// if all stacks are empty, return nullptr and set flag for new event
+  // \note right now that is very brute-force, but for test-purposes
+  TVirtualMC* GetNextEngine();
+  /// update stack, shift/remove particles and stop tracks. Must be called in user implementation of Stepping()
+  void UpdateStacks();
+
+protected:
+  /// registered engines
+  std::vector<TVirtualMC*> fMCEngines;
+  /// corresponding selection criteria
+  //std::vector<TMCSelectionCriteria*> fTMCSelectionCriteria;
+  /// for convenience and immediate report to outside world
+  static TVirtualMC* fCurrentMCEngine;
+  //TMCSelectionCriteria* fCurrentMCSelectionCriteria;
+
 private:
-  void Stepping()
-  {
-    UserStepping();
-    fTMCHandler->UpdateStacks();
-  }
-private:
-   TMCHandler* fTMCHandler;
    // static data members
-#if !defined(__CINT__)
-   static TMCThreadLocal TVirtualMCApplication* fgInstance; ///< Singleton instance
-#else
-   static                TVirtualMCApplication* fgInstance; ///< Singleton instance
-#endif
+  #if !defined(__CINT__)
+     static TMCThreadLocal TVirtualMCApplication* fgInstance; ///< Singleton instance
+  #else
+     static                TVirtualMCApplication* fgInstance; ///< Singleton instance
+  #endif
+
 
    ClassDef(TVirtualMCApplication,1)  //Interface to MonteCarlo application
 };
