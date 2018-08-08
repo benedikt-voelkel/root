@@ -12,7 +12,9 @@
 
 #include "TVirtualMCApplication.h"
 #include "TVirtualMC.h"
+#include "TMCSelectionCriteria.h"
 #include "TError.h"
+#include "TGeoManager.h"
 
 /** \class TVirtualMCApplication
     \ingroup vmc
@@ -70,8 +72,33 @@ TVirtualMCApplication::~TVirtualMCApplication()
 
 void TVirtualMCApplication::RegisterMC(TVirtualMC* mc)
 {
-   fMCEngines.push_back(mc);
-   fCurrentMCEngine = mc;
+  // make sure, at least engine names are unique
+  for(auto& en : fMCEngines) {
+    if(strcmp(en->GetName(), mc->GetName()) == 0) {
+      Fatal("TVirtualMCApplication::RegisterMC", "There is already an engine with name %s.", mc->GetName());
+    }
+  }
+  // new engine, hence push back
+  fMCEngines.push_back(mc);
+  // Provide selection criteria
+  fTMCSelectionCriteria.push_back(new TMCSelectionCriteria(mc->GetName()));
+  fCurrentMCEngine = mc;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Add TMCSelectionCriteria
+///
+
+TMCSelectionCriteria* TVirtualMCApplication::GetSelectionCriteria(const char* name)
+{
+   for(auto sc : fTMCSelectionCriteria) {
+     if(strcmp(sc->GetName(), name) == 0) {
+       return sc;
+     }
+   }
+   Fatal("TVirtualMCApplication::GetSelectionCriteria", "There is no engine with name %s.", name);
+   return nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -83,6 +110,22 @@ TVirtualMC* TVirtualMCApplication::GetMC()
 {
    return fCurrentMCEngine;
 }
+
+void TVirtualMCApplication::ConstructUserGeometry()
+{
+  ConstructGeometry();
+  // Set top volume and close Root geometry if not yet done
+  if ( ! gGeoManager->IsClosed() ) {
+    TGeoVolume *top = (TGeoVolume*)gGeoManager->GetListOfVolumes()->First();
+    gGeoManager->SetTopVolume(top);
+    gGeoManager->CloseGeometry();
+  }
+  MisalignGeometry();
+  ConstructOpGeometry();
+  //InitGeometry();
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 ///

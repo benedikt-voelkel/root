@@ -18,6 +18,8 @@
 // Interface to a user Monte Carlo application.
 //
 
+#include <memory>
+
 #include "TNamed.h"
 #include "TMath.h"
 //#include "TVirtualMC.h"
@@ -25,6 +27,7 @@
 #include "TMCtls.h"
 
 class TVirtualMC;
+class TMCSelectionCriteria;
 
 class TVirtualMCApplication : public TNamed {
 
@@ -50,6 +53,12 @@ public:
    /// Get the current transport engine
    static TVirtualMC* GetMC();
 
+   /// Construct the entire user geometry already
+   /// 1) ConstructGeometry
+   /// 2) MisalignGeometry
+   /// 3) ConstructOpGeometry
+   void ConstructUserGeometry();
+
    /// Construct user geometry
    virtual void ConstructGeometry() = 0;
 
@@ -62,6 +71,9 @@ public:
    /// Initialize geometry
    /// (Usually used to define sensitive volumes IDs)
    virtual void InitGeometry() = 0;
+
+   /// Setting transport properties of media, namely enable/disable processes and set production cuts
+   virtual void SetTransportMediaProperties() {};
 
    /// Add user defined particles (optional)
    virtual void AddParticles() {}
@@ -128,6 +140,9 @@ public:
    /// Merge the data accumulated on workers to the master if needed
    virtual void Merge(TVirtualMCApplication* /*localMCApplication*/) {}
 
+   /// Get the selection criteria by engine name
+   TMCSelectionCriteria* GetSelectionCriteria(const char* name);
+
 protected:
   /// get the next responsible engine in the chain. Assuming the engines are run consecutively
   /// if all stacks are empty, return nullptr and set flag for new event
@@ -137,11 +152,11 @@ protected:
   void UpdateStacks();
 
 protected:
-  /// registered engines
+  /// registered engines, express TVirtualMCApplication's ownership of TVirtualMCs
   std::vector<TVirtualMC*> fMCEngines;
-  /// corresponding selection criteria
-  //std::vector<TMCSelectionCriteria*> fTMCSelectionCriteria;
-  /// for convenience and immediate report to outside world
+  /// corresponding selection criteria, only used by the TVirtualMCApplication ==> no pointers needed
+  std::vector<TMCSelectionCriteria*> fTMCSelectionCriteria;
+  /// for convenience and immediate usage, forwarding to the outside world
   static TVirtualMC* fCurrentMCEngine;
   //TMCSelectionCriteria* fCurrentMCSelectionCriteria;
 

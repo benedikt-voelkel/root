@@ -21,6 +21,6 @@
 #pragma link C++ class  TMCVerbose+;
 #pragma link C++ class  TGeoMCGeometry+;
 #pragma link C++ class  TMCSelectionCriteria+;
-
+#pragma link C++ class  TMCStateManager+;
 
 #endif
