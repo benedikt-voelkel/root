@@ -30,7 +30,7 @@ void TMCStateManager::EnterState(EVMCApplicationState state)
   fCurrentState = state;
 }
 
-EVMCApplicationState TMCStateManager::GetState() const
+EVMCApplicationState TMCStateManager::GetCurrentState() const
 {
   return fCurrentState;
 }
@@ -38,7 +38,7 @@ EVMCApplicationState TMCStateManager::GetState() const
 void TMCStateManager::RequireState(EVMCApplicationState state) const
 {
   if(fCurrentState != state) {
-    Fatal("Wrong state... Exit");
+    Fatal("TMCStateManager::RequireState", "Wrong state... Exit");
     exit(1);
   }
 }

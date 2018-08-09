@@ -18,21 +18,21 @@
 #include "TNamed.h"
 
 /// States in processing order to check/set the current state the application is in
-enum class : int EVMCApplicationState = { kPreInit,											// the very first state, nothing has been done so far
-																					kConstructGeometry,						// construction of bare geometry
-																					kConstructOpGeometry,					// construction of optical geometry
-																					kConstructGeometryFinished,		// geometry construction finished
-																					kGeometryFinished,						// geometry construction finished and TGeoManager geometry closed and ready to be used by TVirtualMCs
-																					kMediaInitialization, 				// initialize media properties, processes and production cuts
-																					kMediaFinished,								// media finished, meaning cuts and process setting for media are set
-																					kInitializeEngines,						// forward geometry and media info to native engines
-																					kEnginesInitialized,					// engines are ready to run
-																					kRunSimulation,								// running simulation
-																					kFinishSimulation,						// simulation is being finished
-																					kSimulationFinished,					// simulation run is entirely finished
-																					kPostProcessing,							// some post requried post processing steps
-																					kDone													// simulation and all post processing steps done, nothing else to do
-																					}
+enum class EVMCApplicationState : int { kPreInit,											// the very first state, nothing has been done so far
+																				kConstructGeometry,						// construction of bare geometry
+																				kConstructOpGeometry,					// construction of optical geometry
+																				kConstructGeometryFinished,		// geometry construction finished
+																				kGeometryFinished,						// geometry construction finished and TGeoManager geometry closed and ready to be used by TVirtualMCs
+																				kMediaInitialization, 				// initialize media properties, processes and production cuts
+																				kMediaFinished,								// media finished, meaning cuts and process setting for media are set
+																				kInitializeEngines,						// forward geometry and media info to native engines
+																				kEnginesInitialized,					// engines are ready to run
+																				kRunSimulation,								// running simulation
+																				kFinishSimulation,						// simulation is being finished
+																				kSimulationFinished,					// simulation run is entirely finished
+																				kPostProcessing,							// some post requried post processing steps
+																				kDone													// simulation and all post processing steps done, nothing else to do
+																			};
 
 class TMCStateManager : public TNamed
 {
@@ -40,7 +40,7 @@ class TMCStateManager : public TNamed
 
 		static TMCStateManager& Instance()
 		{
-			static TMCStateManager inst();
+			static TMCStateManager inst;
 			return inst;
 		}
 		/// Set current state
@@ -48,7 +48,7 @@ class TMCStateManager : public TNamed
 		/// Get the current state
 		EVMCApplicationState GetCurrentState() const;
 		/// Require specific state and exit if wrong
-		RequireState(EVMCApplicationState state) const;
+		void RequireState(EVMCApplicationState state) const;
 
 	private:
 		TMCStateManager()
@@ -57,7 +57,7 @@ class TMCStateManager : public TNamed
 
 	private:
 		/// The current state
-		EVMCApplicationState fCurrentState = kPreInit;
+		EVMCApplicationState fCurrentState = EVMCApplicationState::kPreInit;
 		/// Collection of all previous states
 		std::vector<EVMCApplicationState> fProcessedStates;
 

@@ -3,4 +3,4 @@
 # @author Pere Mato, CERN
 ############################################################################
 
-ROOT_STANDARD_LIBRARY_PACKAGE(VMC DEPENDENCIES EG Geom MathCore)
+ROOT_STANDARD_LIBRARY_PACKAGE(VMC DEPENDENCIES EG Geom MathCore Physics)

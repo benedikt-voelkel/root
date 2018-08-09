@@ -55,7 +55,8 @@ public:
                            Double_t polx, Double_t poly, Double_t polz,
                            TMCProcess mech, Int_t& ntr, Double_t weight,
                            Int_t is) = 0;
-
+   virtual void  PushTrack(Int_t toBeDone, Int_t parent, TParticle* particle,
+                           Double_t tof, TMCProcess mech, Int_t& ntr, Int_t is);
    /// The stack has to provide two pop mechanisms:
    /// The first pop mechanism required.
    /// Pop all particles with toBeDone = 1, both primaries and seconadies
