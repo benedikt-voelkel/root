@@ -1,4 +1,6 @@
 
+#include <algorithm>
+
 #include "TGeoNode.h"
 #include "TGeoVolume.h"
 #include "TGeoManager.h"
@@ -13,40 +15,36 @@ void TMCSelectionCriteria::AddVolume( const char* volName )
 	fVolumeNames.push_back( volName );
 }
 
-bool TMCSelectionCriteria::HasConflict( const TMCSelectionCriteria& anotherConstraint ) const
+Bool_t TMCSelectionCriteria::HasConflict( const TMCSelectionCriteria& anotherConstraint ) const
 {
-	// not clear, which engine is responsible if both vectors of nodes are empty
-	if( fNodes.empty() && anotherConstraint.fNodes.empty() ) {
-		return true;
-	}
-	// there must not be the same node in both constraints
-	for( auto& n : fNodes ) {
-		if( std::find( anotherConstraint.fNodes.begin(), anotherConstraint.fNodes.end(), n ) != anotherConstraint.fNodes.end() ) {
-			return true;
-		}
-	}
-	return false;
+	/// \todo Give this method an actual purpose
+	return kFALSE;
 }
 
-void TMCSelectionCriteria::CollectDaughters(TGeoVolume* vol)
+void TMCSelectionCriteria::Initialize(TGeoManager* geoManager)
 {
-	TObjArray* nodes = vol->GetNodes();
-	TIter next(nodes);
-	TGeoNode* tmpNode = nullptr;
-	while((tmpNode = dynamic_cast<TGeoNode*>(next()))) {
-		fNodes.push_back(tmpNode);
-		CollectDaughters(tmpNode->GetVolume());
+	for(const char* volName : fVolumeNames) {
+		Int_t id = geoManager->GetUID(volName);
+		if(id < 0) {
+			Warning("Initialize", "Could not find volume %s. Ignore...", volName);
+			continue;
+		}
+		fVolumeIDs.push_back(id);
 	}
 }
 
-void TMCSelectionCriteria::CollectNodes()
+Bool_t TMCSelectionCriteria::FitsInclusively() const
 {
-	for( auto& v : fVolumeNames ) {
-		TGeoVolume* motherVol = gGeoManager->GetVolume(v);
-		// Fail in case of Unknown volume name
-		if(!motherVol) {
-			Fatal("TMCSelectionCriteria::CollectNodes", "Unknown volume name %s", v);
-		}
-		CollectDaughters(motherVol);
+	if(fVolumeIDs.empty()) {
+		return kTRUE;
 	}
+	return kFALSE;
+}
+
+Bool_t TMCSelectionCriteria::FitsExclusively(Int_t volId) const
+{
+	if(std::find(fVolumeIDs.begin(), fVolumeIDs.end(), volId) != fVolumeIDs.end()) {
+		return kTRUE;
+	}
+	return kFALSE;
 }

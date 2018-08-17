@@ -27,7 +27,7 @@
 #include "TMCOptical.h"
 #include "TMCtls.h"
 #include "TVirtualMCApplication.h"
-#include "TVirtualMCStack.h"
+#include "TMCQueue.h"
 #include "TVirtualMCDecayer.h"
 #include "TVirtualMagField.h"
 #include "TRandom.h"
@@ -694,11 +694,11 @@ public:
 
    /// Return the current position in the master reference frame of the
    /// track being transported (as double)
-   virtual void     TrackPosition(Double_t &x, Double_t &y, Double_t &z) const =0;
+   virtual void     TrackPosition(Double_t &x, Double_t &y, Double_t &z, Double_t &t) const =0;
 
    /// Return the current position in the master reference frame of the
    /// track being transported (as float)
-   virtual void TrackPosition(Float_t &x, Float_t &y, Float_t &z) const;
+   virtual void TrackPosition(Float_t &x, Float_t &y, Float_t &z, Float_t &t) const;
 
    /// Return the direction and the momentum (GeV/c) of the track
    /// currently being transported
@@ -814,11 +814,14 @@ public:
 
    /// Process one event
    /// Deprecated
-   virtual void ProcessEvent() = 0;
+   virtual void ProcessEvent(Int_t eventId) = 0;
 
    /// Process one  run and return true if run has finished successfully,
    /// return false in other cases (run aborted by user)
    virtual Bool_t ProcessRun(Int_t nevent) = 0;
+
+   /// Additional cleanup after a run can be done here (optional)
+   virtual void TerminateRun() {}
 
    /// Set switches for lego transport
    virtual void InitLego() = 0;
@@ -839,7 +842,7 @@ public:
    //
 
    /// Set the particle stack
-   virtual void SetStack(TVirtualMCStack* stack);
+   virtual void SetQueue(TMCQueue* queue);
 
    /// Set the external decayer
    virtual void SetExternalDecayer(TVirtualMCDecayer* decayer);
@@ -857,7 +860,7 @@ public:
     //
 
     /// Return the particle stack
-    TVirtualMCStack*   GetStack() const   { return fStack; }
+    TMCQueue*   GetQueue() const   { return fQueue; }
 
     /// Return the external decayer
     TVirtualMCDecayer* GetDecayer() const { return fDecayer; }
@@ -874,14 +877,8 @@ protected:
 private:
    TVirtualMC(const TVirtualMC &mc);
    TVirtualMC & operator=(const TVirtualMC &);
-/*
-#if !defined(__CINT__)
-   static TMCThreadLocal TVirtualMC* fgMC; ///< Monte Carlo singleton instance
-#else
-   static                TVirtualMC*  fgMC; ///< Monte Carlo singleton instance
-#endif
-*/
-   TVirtualMCStack*    fStack;   //!< Particles stack
+
+   TMCQueue*           fQueue;   //!< Particles stack
    TVirtualMCDecayer*  fDecayer; //!< External decayer
    TRandom*            fRandom;  //!< Random number generator
    TVirtualMagField*   fMagField;//!< Magnetic field
@@ -891,7 +888,7 @@ private:
 
 // inline functions (with temorary implementation)
 
-inline void TVirtualMC::TrackPosition(Float_t & /*x*/, Float_t & /*y*/, Float_t & /*z*/) const
+inline void TVirtualMC::TrackPosition(Float_t & /*x*/, Float_t & /*y*/, Float_t & /*z*/, Float_t & /*t*/) const
 {
    /// Return the current position in the master reference frame of the
    /// track being transported (as float)

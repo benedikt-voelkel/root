@@ -14,6 +14,7 @@
 
 #include "TVirtualMC.h"
 #include "TVirtualMCApplication.h"
+#include "TMCManager.h"
 
 
 /** \class TVirtualMC
@@ -42,7 +43,7 @@ TVirtualMC::TVirtualMC(const char *name, const char *title,
                        Bool_t /*isRootGeometrySupported*/)
   : TNamed(name,title),
     fApplication(0),
-    fStack(0),
+    fQueue(0),
     fDecayer(0),
     fRandom(0),
     fMagField(0)
@@ -52,7 +53,7 @@ TVirtualMC::TVirtualMC(const char *name, const char *title,
       if (!fApplication) {
          Error("TVirtualMC", "No user MC application is defined.");
       }
-      fApplication->RegisterMC(this);
+      TMCManager::Instance()->RegisterMC(this);
 
       fRandom = gRandom;
 }
@@ -65,7 +66,7 @@ TVirtualMC::TVirtualMC(const char *name, const char *title,
 TVirtualMC::TVirtualMC()
   : TNamed(),
     fApplication(0),
-    fStack(0),
+    fQueue(0),
     fDecayer(0),
     fRandom(0),
     fMagField(0)
@@ -92,7 +93,7 @@ TVirtualMC::~TVirtualMC()
 ///
 
 TVirtualMC* TVirtualMC::GetMC() {
-   return TVirtualMCApplication::GetMC();
+   return TMCManager::GetMC();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -100,9 +101,9 @@ TVirtualMC* TVirtualMC::GetMC() {
 /// Set particles stack.
 ///
 
-void TVirtualMC::SetStack(TVirtualMCStack* stack)
+void TVirtualMC::SetQueue(TMCQueue* queue)
 {
-   fStack = stack;
+   fQueue = queue;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -22,12 +22,10 @@
 
 #include "TNamed.h"
 #include "TMath.h"
-//#include "TVirtualMC.h"
 
 #include "TMCtls.h"
 
-class TVirtualMC;
-class TMCSelectionCriteria;
+class TMCManager;
 
 class TVirtualMCApplication : public TNamed {
 
@@ -48,10 +46,7 @@ public:
    // methods
    //
 
-   /// Register a transport engine
-   void RegisterMC(TVirtualMC* mc);
-   /// Get the current transport engine
-   static TVirtualMC* GetMC();
+   // --------------- Added methods ---------------------
 
    /// Construct the entire user geometry already
    /// 1) ConstructGeometry
@@ -59,6 +54,20 @@ public:
    /// 3) ConstructOpGeometry
    void ConstructUserGeometry();
 
+   /// User code processed right before the event processing of the engines is started (optional)
+   /// No further modification of the engines allowed
+   virtual void PreRun() {}
+   /// User code right after the engines have finished event processing (optional)
+   virtual void PostRun() {}
+
+   /// Wrapper around the MCManager to initialize the MCs
+   void InitMCs();
+   /// The stepping action also calling UserStepping
+   void Stepping();
+
+
+
+   // --------------- Current status ---------------------
    /// Construct user geometry
    virtual void ConstructGeometry() = 0;
 
@@ -94,7 +103,7 @@ public:
    virtual void PreTrack() = 0;
 
    /// Define action at each step
-   virtual void Stepping() = 0;
+   virtual void UserStepping() = 0;
 
    /// Define actions at the end of each track
    virtual void PostTrack() = 0;
@@ -140,25 +149,13 @@ public:
    /// Merge the data accumulated on workers to the master if needed
    virtual void Merge(TVirtualMCApplication* /*localMCApplication*/) {}
 
-   /// Get the selection criteria by engine name
-   TMCSelectionCriteria* GetSelectionCriteria(const char* name);
+protected:
+  /// Terminate a run
+  void TerminateRun();
 
 protected:
-  /// get the next responsible engine in the chain. Assuming the engines are run consecutively
-  /// if all stacks are empty, return nullptr and set flag for new event
-  // \note right now that is very brute-force, but for test-purposes
-  TVirtualMC* GetNextEngine();
-  /// update stack, shift/remove particles and stop tracks. Must be called in user implementation of Stepping()
-  void UpdateStacks();
-
-protected:
-  /// registered engines, express TVirtualMCApplication's ownership of TVirtualMCs
-  std::vector<TVirtualMC*> fMCEngines;
-  /// corresponding selection criteria, only used by the TVirtualMCApplication ==> no pointers needed
-  std::vector<TMCSelectionCriteria*> fTMCSelectionCriteria;
-  /// for convenience and immediate usage, forwarding to the outside world
-  static TVirtualMC* fCurrentMCEngine;
-  //TMCSelectionCriteria* fCurrentMCSelectionCriteria;
+  /// So far also for convenience
+  TMCManager* fMCManager;
 
 private:
    // static data members

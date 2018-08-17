@@ -3,16 +3,16 @@
 
 #include <vector>
 
-#include "TNamed.h"
+#include "Rtypes.h"
 
 class TGeoNode;
 class TGeoVolume;
+class TGeoManager;
 
-class TMCSelectionCriteria : public TNamed
+class TMCSelectionCriteria
 {
 	public:
-		TMCSelectionCriteria( const char* name, const char* title = "" )
-			: TNamed( name, title )
+		TMCSelectionCriteria()
 		{
 			fVolumeNames.clear();
 		}
@@ -25,22 +25,21 @@ class TMCSelectionCriteria : public TNamed
 		// and so on...
 		/// Check for overlap conflicts with another TMCCondition
 		Bool_t HasConflict( const TMCSelectionCriteria& anotherConstraint ) const;
+		/// Initialize the criteria with information provided by a TGeoManager
+		void Initialize(TGeoManager* geoManager);
+		/// Check whether given parameters fit the given criteria exclusively
+		Bool_t FitsExclusively(Int_t volId) const;
+		/// Check whether given parameters fit the given criteria inclusively
+		Bool_t FitsInclusively() const;
 
-	private:
-		/// Don't copy or default construct this
-		// \note do it like that temporarily but move to ...() = delete. Right now, ROOT complains when doing that since the default constructor seems to be needed
-		TMCSelectionCriteria();
-		/// Get the pointers to all nodes and their descendants given the volume names
-		void CollectNodes();
-		/// The actual method deriving all nodes under a given mother volume
-		void CollectDaughters(TGeoVolume* vol);
 
 	private:
 		/// names of TGeoVolumes
 		std::vector<const char*> fVolumeNames;
+		/// Store IDs of constructed volumes for later lookup
+		std::vector<Int_t> fVolumeIDs;
 		/// all nodes corresponding to the volumes including the descendants
 		/// these pointers will be used for lookup later
-		std::vector<TGeoNode*> fNodes;
 
 	ClassDef(TMCSelectionCriteria,1)
 };
