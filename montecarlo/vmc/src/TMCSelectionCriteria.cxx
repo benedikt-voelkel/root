@@ -1,4 +1,5 @@
 
+#include <iostream>
 #include <algorithm>
 
 #include "TGeoNode.h"
@@ -31,6 +32,7 @@ void TMCSelectionCriteria::Initialize(TGeoManager* geoManager)
 		}
 		fVolumeIDs.push_back(id);
 	}
+	Print();
 }
 
 Bool_t TMCSelectionCriteria::FitsInclusively() const
@@ -47,4 +49,17 @@ Bool_t TMCSelectionCriteria::FitsExclusively(Int_t volId) const
 		return kTRUE;
 	}
 	return kFALSE;
+}
+
+void TMCSelectionCriteria::Print() const
+{
+	Info("Print", "Info in selection criteria");
+	std::cout << "Volume names:\n";
+	for(const auto& vol : fVolumeNames) {
+		std::cout << "\t" << vol << "\n";
+	}
+	std::cout << "Volume IDs:\n";
+	for(const auto& id : fVolumeIDs) {
+		std::cout << "\t" << id << "\n";
+	}
 }

@@ -52,7 +52,6 @@ TVirtualMCApplication::TVirtualMCApplication()
   : TNamed()
 {
    fgInstance = this;
-   fMCManager = TMCManager::Instance();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -82,33 +81,6 @@ void TVirtualMCApplication::ConstructUserGeometry()
   MisalignGeometry();
   ConstructOpGeometry();
 }
-
-void TVirtualMCApplication::TerminateRun()
-{
-  // Notify the TMCManager
-  fMCManager->TerminateRun();
-}
-
-void TVirtualMCApplication::InitMCs()
-{
-  // So far that's the only thing to do
-  fMCManager->InitMCs();
-}
-
-////////////////////////////////////////////////////////////////////////////////
-///
-/// Wrapping the geometry construction independent of the engines
-///
-
-void TVirtualMCApplication::Stepping()
-{
-  // First call the user action is called
-  UserStepping();
-
-  fMCManager->Stepping();
-
-}
-
 
 ////////////////////////////////////////////////////////////////////////////////
 ///

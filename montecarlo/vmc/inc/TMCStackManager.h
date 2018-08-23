@@ -29,7 +29,7 @@ class TMCContainer;
 class TVirtualMC;
 
 
-class TMCStackManager : public TObject {
+class TMCStackManager {
 
 public:
 
@@ -56,14 +56,14 @@ public:
    /// - ntr        - track number (is filled by the stack
    /// - weight     - particle weight
    /// - is         - generation status code
-   void  PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
+   TParticle* PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
                            Double_t px, Double_t py, Double_t pz, Double_t e,
                            Double_t vx, Double_t vy, Double_t vz, Double_t tof,
                            Double_t polx, Double_t poly, Double_t polz,
                            TMCProcess mech, Int_t& ntr, Double_t weight,
                            Int_t is);
 
-   void PushTrack(Int_t toBeDone, TParticle* particle, TMCProcess mech, Int_t& ntr);
+   TParticle* PushTrack(Int_t toBeDone, TParticle* particle, TMCProcess mech, Int_t& ntr);
 
     /// The outside world might suggest that the track handled by the engine
     /// of the current container needs to be moved
@@ -122,7 +122,14 @@ public:
    void RegisterStack(TVirtualMCStack* stack);
 
    /// Forward primaries from the global stack to the engine queues wrt the respective TMCSelectionCriteria
-   Bool_t InitializeQueuesForPrimaries();
+   Bool_t HasPrimaries();
+
+   //
+   // Verbosity
+   //
+
+   /// Print status of stacks/queues
+   void Print() const;
  private:
 
    /// Constructor prvate for save singleton behaviour
@@ -151,6 +158,7 @@ public:
     // Information for the seletion of engines when moving tracks (or attempt to)
     Int_t                        fCurrentVolId;     ///< Buffer for the current volume id
     Int_t                        fCurrentVolCopyNo; ///< Buffer the copy number of the current volume
+    Bool_t                       fLastTrackSuggestedForMoving; ///< Flag the current track since it might need to be moved in the next step
 
    ClassDef(TMCStackManager,1) //Interface to a particles stack
 };

@@ -10,49 +10,41 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
-#ifndef ROOT_TVirtualMCApplication
-#define ROOT_TVirtualMCApplication
+#ifndef ROOT_TVirtualMCConcurrentApplication
+#define ROOT_TVirtualMCConcurrentApplication
 //
-// Class TVirtualMCApplication
+// Class TVirtualMCConcurrentApplication
 // ---------------------------
 // Interface to a user Monte Carlo application.
 //
+
+#include <memory>
 
 #include "TNamed.h"
 #include "TMath.h"
 
 #include "TMCtls.h"
 
-class TMCManager;
+#include "TVirtualMCApplication.h"
 
-class TVirtualMCApplication : public TNamed {
+class TVirtualMCConcurrentApplication : public TVirtualMCApplication {
 
 public:
    /// Standard constructor
-   TVirtualMCApplication(const char *name, const char *title);
+   TVirtualMCConcurrentApplication(const char *name, const char *title);
 
    /// Default constructor
-   TVirtualMCApplication();
+   TVirtualMCConcurrentApplication();
 
    /// Destructor
-   virtual ~TVirtualMCApplication();
+   virtual ~TVirtualMCConcurrentApplication();
 
    /// Static access method
-   static TVirtualMCApplication* Instance();
+   static TVirtualMCConcurrentApplication* Instance();
 
    //
    // methods
    //
-   // --------------- Added methods ---------------------
-
-   /// Construct the entire user geometry already so that is available and the
-   /// TVirtualMCs can pick it up
-   /// \note Geomtry must be built with TGeo
-   /// 1) ConstructGeometry
-   /// 2) MisalignGeometry
-   /// 3) ConstructOpGeometry
-   /// Do not override this method
-   void ConstructUserGeometry();
 
 
    // --------------- Current status ---------------------
@@ -67,10 +59,8 @@ public:
 
    /// Initialize geometry
    /// (Usually used to define sensitive volumes IDs)
-   virtual void InitGeometry() = 0;
-
-   /// Setting transport properties of media, namely enable/disable processes and set production cuts
-   virtual void SetTransportMediaProperties() {};
+   virtual void InitGeometryConcurrent() = 0;
+   void InitGeometry();
 
    /// Add user defined particles (optional)
    virtual void AddParticles() {}
@@ -79,28 +69,40 @@ public:
    virtual void AddIons() {}
 
    /// Generate primary particles
-   virtual void GeneratePrimaries() = 0;
+   /// Either push particles to the TVirtualMCStack directly or do it via the
+   /// TMCStackManager::PushTrack(...)
+   virtual void GeneratePrimariesConcurrent() = 0;
+   void GeneratePrimaries();
 
    /// Define actions at the beginning of the event
-   virtual void BeginEvent() = 0;
+   virtual void BeginEventConcurrent() = 0;
+   void BeginEvent();
 
    /// Define actions at the beginning of the primary track
-   virtual void BeginPrimary() = 0;
+   virtual void BeginPrimaryConcurrent() = 0;
+   void BeginPrimary();
 
    /// Define actions at the beginning of each track
-   virtual void PreTrack() = 0;
+   virtual void PreTrackConcurrent() = 0;
+   void PreTrack();
 
    /// Define action at each step
-   virtual void Stepping() = 0;
+   /// The stepping action also calling UserStepping
+   /// Do not override this method
+   virtual void SteppingConcurrent() = 0;
+   void Stepping();
 
    /// Define actions at the end of each track
-   virtual void PostTrack() = 0;
+   virtual void PostTrackConcurrent() = 0;
+   void PostTrack();
 
    /// Define actions at the end of the primary track
-   virtual void FinishPrimary() = 0;
+   virtual void FinishPrimaryConcurrent() = 0;
+   void FinishPrimary();
 
    /// Define actions at the end of the event
-   virtual void FinishEvent() = 0;
+   virtual void FinishEventConcurrent() = 0;
+   void FinishEvent();
 
    /// Define maximum radius for tracking (optional)
    virtual Double_t TrackingRmax() const { return DBL_MAX; }
@@ -116,7 +118,7 @@ public:
 
    // Functions for multi-threading applications
    /// Clone MC application on worker
-   virtual TVirtualMCApplication* CloneForWorker() const { return 0;}
+   virtual TVirtualMCConcurrentApplication* CloneForWorker() const { return 0;}
 
    /// Const Initialize MC application on worker  - now deprecated
    /// Use new non-const InitOnWorker()  instead
@@ -135,31 +137,23 @@ public:
    /// Define actions at the end of the worker run if needed
    virtual void FinishRunOnWorker() {}
    /// Merge the data accumulated on workers to the master if needed
-   virtual void Merge(TVirtualMCApplication* /*localMCApplication*/) {}
-
- protected:
-   /// Provide the TMCManager which
-   /// 1) provides static access to the engine which is currently running
-   ///    ==> In that way a quasi singleton behaviour is achieved when running a
-   ///        single engine only
-   /// 2) handles different engines in case of a concurrent run
-   TMCManager* fMCManager;
+   virtual void Merge(TVirtualMCConcurrentApplication* /*localMCApplication*/) {}
 
 private:
    // static data members
   #if !defined(__CINT__)
-     static TMCThreadLocal TVirtualMCApplication* fgInstance; ///< Singleton instance
+     static TMCThreadLocal TVirtualMCConcurrentApplication* fgInstance; ///< Singleton instance
   #else
-     static                TVirtualMCApplication* fgInstance; ///< Singleton instance
+     static                TVirtualMCConcurrentApplication* fgInstance; ///< Singleton instance
   #endif
 
 
-   ClassDef(TVirtualMCApplication,1)  //Interface to MonteCarlo application
+   ClassDef(TVirtualMCConcurrentApplication,1)  //Interface to MonteCarlo application
 };
 
-inline void TVirtualMCApplication::Field(const Double_t* /*x*/, Double_t* b) const {
+inline void TVirtualMCConcurrentApplication::Field(const Double_t* /*x*/, Double_t* b) const {
    // No magnetic field
    b[0] = 0; b[1] = 0; b[2] = 0;
 }
 
-#endif //ROOT_TVirtualMCApplication
+#endif //ROOT_TVirtualMCConcurrentApplication

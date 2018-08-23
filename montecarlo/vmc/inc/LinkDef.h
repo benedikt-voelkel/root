@@ -17,6 +17,7 @@
 #pragma link C++ class  TVirtualMC+;
 #pragma link C++ class  TVirtualMCGeometry+;
 #pragma link C++ class  TVirtualMCApplication+;
+#pragma link C++ class  TVirtualMCConcurrentApplication+;
 #pragma link C++ class  TVirtualMCStack+;
 #pragma link C++ class  TMCManager+;
 #pragma link C++ class  TMCStackManager+;

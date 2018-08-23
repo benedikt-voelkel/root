@@ -30,8 +30,9 @@
 class TMCStackManager;
 class TVirtualMC;
 class TMCContainer;
+class TVirtualMCApplication;
 
-class TMCManager : public TObject {
+class TMCManager {
 
 public:
 
@@ -42,15 +43,15 @@ public:
    static TMCManager* Instance();
 
    //
-   // methods
+   // action methods
    //
 
+   /// Enable/Disable the concurrent mode
+   void SetConcurrentMode(Bool_t isConcurrent = kFALSE);
    /// Register a transport engine
    void RegisterMC(TVirtualMC* mc);
    /// Initialize MCs
    void InitMCs();
-   /// Initialize the queues using the TMCStackManager
-   void InitializeQueues();
    /// Running the MCs
    void RunMCs(Int_t nofEvents);
    /// Terminate the run for all registered engines
@@ -70,12 +71,20 @@ public:
    /// \note experimental
    void ConnectToCurrentMC(TVirtualMC*& mc);
 
+   //
+   // getting and setting
+   //
 
-protected:
-  /// update stack, shift/remove particles and stop tracks. Must be called in user implementation of Stepping()
-  void UpdateStacks();
-  /// Get an engine by its name
-  TVirtualMC* GetMC(const char* name);
+   /// Check whther primaries must be pushed to the VMC stack
+   Bool_t NeedPrimaries() const;
+
+   //
+   // Verbosity
+   //
+
+   /// Print status of TMCManager and registered engines
+   void Print() const;
+private:
   /// Choose and set the current container by name and pointer
   void SetCurrentMCContainer(const char* name);
   void SetCurrentMCContainer(TMCContainer* con);
@@ -83,6 +92,8 @@ protected:
   Bool_t GetNextEngine();
 
 protected:
+  /// The running TVirtualMCApplication
+  TVirtualMCApplication* fMCApplication;
   /// Wrapping engine, stack and criteria
   std::vector<TMCContainer*> fMCContainers;
   /// for convenience and immediate usage, forwarding to the outside world
@@ -100,6 +111,10 @@ private:
 
   /// Default constructor
   TMCManager();
+  /// Flag to tell whether to run in concurrent mode or single engine mode
+  Bool_t fIsConcurrentMode;
+  /// Flag to tell whether primaries should be pushed to the VMC stack
+  Bool_t fNeedPrimaries;
 
    // static data members
   #if !defined(__CINT__)

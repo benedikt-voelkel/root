@@ -31,6 +31,11 @@ class TMCSelectionCriteria
 		Bool_t FitsExclusively(Int_t volId) const;
 		/// Check whether given parameters fit the given criteria inclusively
 		Bool_t FitsInclusively() const;
+		//
+		// verbosity
+		//
+		/// Print all information there is
+		void Print() const;
 
 
 	private:
