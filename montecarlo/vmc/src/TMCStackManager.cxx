@@ -102,6 +102,7 @@ void TMCStackManager::PushToQueue(TParticle* track)
   TGeoNode* node = gGeoManager->FindNode(track->Vx(), track->Vy(), track->Vz());
   if(node) {
     fCurrentVolId = node->GetVolume()->GetNumber();
+    Info("PushToQueue", "Found node with volume id %i", fCurrentVolId);
   }
   // First check if the track fits exclusively to criteria of a certain TMCContainer
   for(auto& con : fMCContainers) {
@@ -152,13 +153,6 @@ void TMCStackManager::BufferSelectionParameters(TMCContainer* currentContainer)
   // The only parameter the selection is based upon so far
   fCurrentVolId = currentContainer->fMC->CurrentVolID(fCurrentVolCopyNo);
 }
-
-/*void TMCStackManager::BufferCurrentTrackParameters(TMCContainer* currentContainer)
-{
-  currentContainer->TrackPosition(fCurrentTrackPosition);
-  currentContainer->TrackMomentum(fCurrentTrackPosition);
-  TParticle* fCurrentTrack = fMasterStack->GetCurrentTrack();
-}*/
 
 ////////////////////////////////////////////////////////////////////////////////
 ///

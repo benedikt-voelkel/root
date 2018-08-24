@@ -37,7 +37,7 @@ class TMCManager {
 public:
 
    /// Destructor
-   virtual ~TMCManager();
+   ~TMCManager();
 
    /// Static access method
    static TMCManager* Instance();
@@ -47,7 +47,7 @@ public:
    //
 
    /// Enable/Disable the concurrent mode
-   void SetConcurrentMode(Bool_t isConcurrent = kFALSE);
+   void SetConcurrentMode(Bool_t isConcurrent = kTRUE);
    /// Register a transport engine
    void RegisterMC(TVirtualMC* mc);
    /// Initialize MCs

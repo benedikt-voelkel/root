@@ -91,10 +91,10 @@ void TVirtualMCConcurrentApplication::BeginEvent()
 /// Begin transportation of a new primary
 ///
 
-void TVirtualMCConcurrentApplication::BeginPrimaryConcurrent()
+void TVirtualMCConcurrentApplication::BeginPrimary()
 {
   // Check conditions and then call the BeginEventConcurrent()
-  BeginEventConcurrent();
+  BeginPrimaryConcurrent();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

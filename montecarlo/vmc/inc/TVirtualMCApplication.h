@@ -52,7 +52,7 @@ public:
    /// 2) MisalignGeometry
    /// 3) ConstructOpGeometry
    /// Do not override this method
-   void ConstructUserGeometry();
+   virtual void ConstructUserGeometry();
 
 
    // --------------- Current status ---------------------
@@ -68,9 +68,6 @@ public:
    /// Initialize geometry
    /// (Usually used to define sensitive volumes IDs)
    virtual void InitGeometry() = 0;
-
-   /// Setting transport properties of media, namely enable/disable processes and set production cuts
-   virtual void SetTransportMediaProperties() {};
 
    /// Add user defined particles (optional)
    virtual void AddParticles() {}

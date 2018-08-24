@@ -15,6 +15,7 @@ class TMCSelectionCriteria
 		TMCSelectionCriteria()
 		{
 			fVolumeNames.clear();
+			fVolumeIDs.clear();
 		}
 		/* 1. Set selection criteria for
 		 * 2. Can check for overlapping criteria hence looking for conflicts
