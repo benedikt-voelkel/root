@@ -35,12 +35,12 @@ TVirtualMCStack::TVirtualMCStack()
 TVirtualMCStack::~TVirtualMCStack()
 {}
 
-TParticle* TVirtualMCStack::PushTrack(Int_t toBeDone, Int_t parent, TParticle* particle,
+void TVirtualMCStack::PushTrack(Int_t toBeDone, Int_t parent, TParticle* particle,
                                 Double_t tof, TMCProcess mech, Int_t& ntr, Int_t is)
 {
   TVector3 v;
   particle->GetPolarisation(v);
-  return PushTrack(toBeDone, parent, particle->GetPdgCode(), particle->Px(), particle->Py(),
+  PushTrack(toBeDone, parent, particle->GetPdgCode(), particle->Px(), particle->Py(),
             particle->Pz(), particle->Energy(), particle->Vx(), particle->Vy(), particle->Vz(),
             tof, v.X(), v.Y(), v.Z(), mech, ntr, particle->GetWeight(), is);
 }

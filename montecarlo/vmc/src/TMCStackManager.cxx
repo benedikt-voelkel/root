@@ -62,7 +62,7 @@ TMCStackManager::TMCStackManager()
 TMCStackManager::~TMCStackManager()
 {}
 
-TParticle* TMCStackManager::PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
+void TMCStackManager::PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
                         Double_t px, Double_t py, Double_t pz, Double_t e,
                         Double_t vx, Double_t vy, Double_t vz, Double_t tof,
                         Double_t polx, Double_t poly, Double_t polz,
@@ -72,25 +72,33 @@ TParticle* TMCStackManager::PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
   // Needs not to be done anymore since it will be forwarded to the queue of the
   // responsible engine
   // \todo If a track is pushed while transporting directly forward it to a queue, set toBeDone=0
-  TParticle* track = fMasterStack->PushTrack(0, parent, pdg, px, py, pz, e, vx, vy, vz,
+  fMasterStack->PushTrack(0, parent, pdg, px, py, pz, e, vx, vy, vz,
                             tof, polx, poly, polz, mech, ntr, weight, is);
+
+  // \note \todo That is a workaround to set the track ID given the current interfaces
+  // is TVirtualMCStack
+  Int_t trackNumberCache = fMasterStack->GetCurrentTrackNumber();
+  fMasterStack->SetCurrentTrack(ntr);
+  TParticle* track = fMasterStack->GetCurrentTrack();
+  track->SetID(ntr);
+  fMasterStack->SetCurrentTrack(trackNumberCache);
   // If the track is toBeDone it needs to be forwarded to the queue of the
   // responsible engine
+
   if(toBeDone) {
     /// \todo Make that more efficient, maybe already create a particle pointer here?!
     PushToQueue(track);
   }
-  return track;
 }
 
 // \todo Does it make sence to encode the production in the particle object?
 // \note \todo Unify the usage of the first mother as the actual parent
-TParticle* TMCStackManager::PushTrack(Int_t toBeDone, TParticle* particle,
+void TMCStackManager::PushTrack(Int_t toBeDone, TParticle* particle,
                                 TMCProcess mech, Int_t& ntr)
 {
   TVector3 v;
   particle->GetPolarisation(v);
-  return PushTrack(toBeDone, particle->GetFirstMother(), particle->GetPdgCode(), particle->Px(), particle->Py(),
+  PushTrack(toBeDone, particle->GetFirstMother(), particle->GetPdgCode(), particle->Px(), particle->Py(),
             particle->Pz(), particle->Energy(), particle->Vx(), particle->Vy(), particle->Vz(),
             particle->T(), v.X(), v.Y(), v.Z(), mech, ntr, particle->GetWeight(), particle->GetStatusCode());
 }
@@ -130,6 +138,9 @@ void TMCStackManager::InitializeQueuesWithPrimaries()
   // If that point is reached, concurrent mode is enabled and the decision of
   // which queue to push the tracks to gets more complex
   while((track = fMasterStack->PopNextTrack(trackNumber))) {
+    // \note \todo Need to set track number here since the TVirtualMCStack does not
+    // provide this (yet)
+    track->SetID(trackNumber);
     PushToQueue(track);
   }
 }
