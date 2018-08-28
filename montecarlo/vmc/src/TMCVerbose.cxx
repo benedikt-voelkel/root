@@ -90,11 +90,11 @@ void TMCVerbose::PrintTrackInfo() const
 
    // Track ID
    //
-   std::cout << "   Track ID = " << gMC->GetStack()->GetCurrentTrackNumber() << "  ";
+   //std::cout << "   Track ID = " << gMC->GetStack()->GetCurrentTrackNumber() << "  ";
 
    // Parent ID
    //
-   std::cout << "   Parent ID = " << gMC->GetStack()->GetCurrentParentTrackNumber();
+   //std::cout << "   Parent ID = " << gMC->GetStack()->GetCurrentParentTrackNumber();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -255,8 +255,8 @@ void TMCVerbose::Stepping()
 
       // Position
       //
-      Double_t x, y, z;
-      gMC->TrackPosition(x, y, z);
+      Double_t x, y, z, t;
+      gMC->TrackPosition(x, y, z, t);
       std::cout << std::setw(8) << std::setprecision(3) << x << " "
            << std::setw(8) << std::setprecision(3) << y << " "
            << std::setw(8) << std::setprecision(3) << z << "  ";
@@ -324,4 +324,3 @@ void TMCVerbose::FinishEvent()
    if (fLevel>0)
       std::cout << "--- Finish event " << std::endl;
 }
-

@@ -1,0 +1,75 @@
+// @(#)root/vmc:$Name:  $:$Id$
+// Authors: Benedikt Volkel 06/08/2018
+
+/*************************************************************************
+ * Copyright (C) 2006, Rene Brun and Fons Rademakers.                    *
+ * Copyright (C) 2002, ALICE Experiment at CERN.                         *
+ * All rights reserved.                                                  *
+ *                                                                       *
+ * For the licensing terms see $ROOTSYS/LICENSE.                         *
+ * For the list of contributors see $ROOTSYS/README/CREDITS.             *
+ *************************************************************************/
+
+#ifndef ROOT_TMCStateManager
+#define ROOT_TMCStateManager
+
+#include <vector>
+
+#include "Rtypes.h"
+
+#include "TMCtls.h"
+
+/// States in processing order to check/set the current state the application is in
+enum class EVMCApplicationState : int { kPreInit,											// the very first state, nothing has been done so far
+																				kConstructGeometry,						// construction of bare geometry
+																				kConstructOpGeometry,					// construction of optical geometry
+																				kConstructGeometryFinished,		// geometry construction finished
+																				kGeometryFinished,						// geometry construction finished and TGeoManager geometry closed and ready to be used by TVirtualMCs
+																				kMediaInitialization, 				// initialize media properties, processes and production cuts
+																				kMediaFinished,								// media finished, meaning cuts and process setting for media are set
+																				kInitializeEngines,						// forward geometry and media info to native engines
+																				kEnginesInitialized,					// engines are ready to run
+																				kRunSimulation,								// running simulation
+																				kFinishSimulation,						// simulation is being finished
+																				kSimulationFinished,					// simulation run is entirely finished
+																				kPostProcessing,							// some post requried post processing steps
+																				kDone													// simulation and all post processing steps done, nothing else to do
+																			};
+
+class TMCStateManager
+{
+	public:
+
+		static TMCStateManager* Instance();
+		/// Set current state
+		void EnterState(EVMCApplicationState state);
+		/// Get the current state
+		EVMCApplicationState GetCurrentState() const;
+		/// Require specific state and exit if wrong
+		void RequireState(EVMCApplicationState state) const;
+		// \note todo This is more a configuration than a state. Move to a class like TMCRunConfiguration?
+		/// Enable/disable concurrent mode of engines
+		void SetConcurrentMode(Bool_t isConcurrent = kTRUE);
+		/// Get the status of the concurrent mode
+		Bool_t GetConcurrentMode() const;
+
+	private:
+		TMCStateManager();
+
+	private:
+		// static data members
+	 #if !defined(__CINT__)
+			static TMCThreadLocal TMCStateManager* fgInstance; ///< Singleton instance
+	 #else
+			static                TMCStateManager* fgInstance; ///< Singleton instance
+	 #endif
+		/// The current state
+		EVMCApplicationState fCurrentState = EVMCApplicationState::kPreInit;
+		/// Collection of all previous states
+		std::vector<EVMCApplicationState> fProcessedStates;
+		/// Flag to check status of concurrent run mode
+		Bool_t fIsConcurrentMode;
+
+	ClassDef(TMCStateManager,1)
+};
+#endif /* ROOT_TMCStateManager */

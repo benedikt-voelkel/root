@@ -56,6 +56,9 @@ public:
                            TMCProcess mech, Int_t& ntr, Double_t weight,
                            Int_t is) = 0;
 
+   virtual void PushTrack(Int_t toBeDone, Int_t parent, TParticle* particle,
+                                Double_t tof, TMCProcess mech, Int_t& ntr, Int_t is);
+
    /// The stack has to provide two pop mechanisms:
    /// The first pop mechanism required.
    /// Pop all particles with toBeDone = 1, both primaries and seconadies
@@ -76,6 +79,9 @@ public:
    //
    // Get methods
    //
+
+   /// Number of tracks still to be done
+   virtual Int_t      GetNtrackToDo() const { return 0; }
 
    /// Total number of tracks
    virtual Int_t      GetNtrack()    const = 0;

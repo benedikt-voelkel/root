@@ -1063,4 +1063,3 @@ Bool_t TGeoMCGeometry::GetMedium(const TString &volumeName,TString &name,
    stmin  = med->GetParam(7);
    return kTRUE;
 }
-

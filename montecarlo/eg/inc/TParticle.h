@@ -49,6 +49,8 @@ protected:
   Double_t       fPolarTheta;           // Polar angle of polarisation
   Double_t       fPolarPhi;             // azymutal angle of polarisation
 
+  Int_t          fID;                   // unique identifier (e.g. within an event)
+
   mutable TParticlePDG* fParticlePDG;   //! reference to the particle record in PDG database
   //----------------------------------------------------------------------------
   //  functions
@@ -69,6 +71,18 @@ public:
              const TLorentzVector &p,
              const TLorentzVector &v);
 
+   TParticle(Int_t id, Int_t pdg, Int_t status,
+             Int_t mother1, Int_t mother2,
+             Int_t daughter1, Int_t daughter2,
+             Double_t px, Double_t py, Double_t pz, Double_t etot,
+             Double_t vx, Double_t vy, Double_t vz, Double_t time);
+
+   TParticle(Int_t id, Int_t pdg, Int_t status,
+             Int_t mother1, Int_t mother2,
+             Int_t daughter1, Int_t daughter2,
+             const TLorentzVector &p,
+             const TLorentzVector &v);
+
    TParticle(const TParticle &part);
 
    virtual ~TParticle();
@@ -77,7 +91,7 @@ public:
 
 //   virtual TString* Name   () const { return fName.Data(); }
 //   virtual char*  GetName()   const { return fName.Data(); }
-
+   Int_t          ID              ()            const { return fID; }
    Double_t       Ek              ()            const { return fE-fCalcMass;                                    }
    Int_t          GetStatusCode   ()            const { return fStatusCode;                                     }
    Int_t          GetPdgCode      ()            const { return fPdgCode;                                        }
@@ -158,6 +172,7 @@ public:
    void           SetDaughter(int i, int code)                                             { fDaughter[i] = code ; }
    void           SetLastDaughter(int code)                                                { fDaughter[1] = code ; }
    void           SetCalcMass(Double_t mass)                                               { fCalcMass=mass;}
+   void           SetID(Int_t id) { fID = id; }
    void           SetPdgCode(Int_t pdg);
    void           SetPolarisation(Double_t polx, Double_t poly, Double_t polz);
    void           SetPolarisation(const TVector3& v)                                       {SetPolarisation(v.X(), v.Y(), v.Z());}

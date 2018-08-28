@@ -10,7 +10,12 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
+#include <iostream>
+
 #include "TVirtualMC.h"
+#include "TVirtualMCApplication.h"
+#include "TMCManager.h"
+
 
 /** \class TVirtualMC
     \ingroup vmc
@@ -30,35 +35,27 @@ when processing a ROOT macro where the concrete Monte Carlo is instantiated.
 
 ClassImp(TVirtualMC);
 
-TMCThreadLocal TVirtualMC* TVirtualMC::fgMC=0;
-
 ////////////////////////////////////////////////////////////////////////////////
 ///
 /// Standard constructor
 ///
-
 TVirtualMC::TVirtualMC(const char *name, const char *title,
                        Bool_t /*isRootGeometrySupported*/)
   : TNamed(name,title),
     fApplication(0),
-    fStack(0),
+    fQueue(0),
     fDecayer(0),
     fRandom(0),
     fMagField(0)
 {
-   if(fgMC) {
-      Warning("TVirtualMC","Cannot initialise twice MonteCarlo class");
-   } else {
-      fgMC=this;
-
       fApplication = TVirtualMCApplication::Instance();
 
       if (!fApplication) {
          Error("TVirtualMC", "No user MC application is defined.");
       }
+      TMCManager::Instance()->RegisterMC(this);
 
       fRandom = gRandom;
-   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -69,7 +66,7 @@ TVirtualMC::TVirtualMC(const char *name, const char *title,
 TVirtualMC::TVirtualMC()
   : TNamed(),
     fApplication(0),
-    fStack(0),
+    fQueue(0),
     fDecayer(0),
     fRandom(0),
     fMagField(0)
@@ -83,7 +80,7 @@ TVirtualMC::TVirtualMC()
 
 TVirtualMC::~TVirtualMC()
 {
-   fgMC=0;
+  std::cout << "VMC is destrcuted" << std::endl;
 }
 
 //
@@ -96,7 +93,7 @@ TVirtualMC::~TVirtualMC()
 ///
 
 TVirtualMC* TVirtualMC::GetMC() {
-   return fgMC;
+   return TMCManager::GetMC();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -104,9 +101,9 @@ TVirtualMC* TVirtualMC::GetMC() {
 /// Set particles stack.
 ///
 
-void TVirtualMC::SetStack(TVirtualMCStack* stack)
+void TVirtualMC::SetQueue(TMCQueue* queue)
 {
-   fStack = stack;
+   fQueue = queue;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

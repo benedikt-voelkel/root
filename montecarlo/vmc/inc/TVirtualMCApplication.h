@@ -23,6 +23,10 @@
 
 #include "TMCtls.h"
 
+class TMCManager;
+class TMCStateManager;
+class TMCStackManager;
+
 class TVirtualMCApplication : public TNamed {
 
 public:
@@ -41,7 +45,23 @@ public:
    //
    // methods
    //
+   // --------------- Added methods ---------------------
 
+   /// Construct the entire user geometry already so that is available and the
+   /// TVirtualMCs can pick it up
+   /// \note Geomtry must be built with TGeo
+   /// 1) ConstructGeometry
+   /// 2) MisalignGeometry
+   /// 3) ConstructOpGeometry
+   /// Do not override this method
+   virtual void ConstructUserGeometry();
+
+   /// Generating primaries and invoke the TMCStackManager to initialize the
+   /// VMC queues
+   virtual void GimmePrimaries();
+
+
+   // --------------- Current status ---------------------
    /// Construct user geometry
    virtual void ConstructGeometry() = 0;
 
@@ -50,9 +70,6 @@ public:
 
    /// Define parameters for optical processes (optional)
    virtual void ConstructOpGeometry() {}
-
-   /// Define sensitive detectors (optional)
-   virtual void ConstructSensitiveDetectors() {}
 
    /// Initialize geometry
    /// (Usually used to define sensitive volumes IDs)
@@ -123,13 +140,27 @@ public:
    /// Merge the data accumulated on workers to the master if needed
    virtual void Merge(TVirtualMCApplication* /*localMCApplication*/) {}
 
+ protected:
+   /// Provide the TMCManager which
+   /// 1) provides static access to the engine which is currently running
+   ///    ==> In that way a quasi singleton behaviour is achieved when running a
+   ///        single engine only
+   /// 2) handles different engines in case of a concurrent run
+   TMCManager* fMCManager;
+   /// Provide the TMCStackManager which is the interface between the TVirtualMCStack
+   /// defined by the user and the single VMCs and their queues
+   TMCStackManager* fMCStackManager;
+   /// Ponter to global state manager
+   TMCStateManager* fMCStateManager;
+
 private:
    // static data members
-#if !defined(__CINT__)
-   static TMCThreadLocal TVirtualMCApplication* fgInstance; ///< Singleton instance
-#else
-   static                TVirtualMCApplication* fgInstance; ///< Singleton instance
-#endif
+  #if !defined(__CINT__)
+     static TMCThreadLocal TVirtualMCApplication* fgInstance; ///< Singleton instance
+  #else
+     static                TVirtualMCApplication* fgInstance; ///< Singleton instance
+  #endif
+
 
    ClassDef(TVirtualMCApplication,1)  //Interface to MonteCarlo application
 };
@@ -140,4 +171,3 @@ inline void TVirtualMCApplication::Field(const Double_t* /*x*/, Double_t* b) con
 }
 
 #endif //ROOT_TVirtualMCApplication
-
