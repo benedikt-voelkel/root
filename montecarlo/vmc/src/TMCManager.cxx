@@ -15,9 +15,8 @@
 #include "TMCManager.h"
 #include "TVirtualMC.h"
 #include "TVirtualMCApplication.h"
+#include "TMCStateManager.h"
 #include "TMCStackManager.h"
-#include "TMCSelectionCriteria.h"
-#include "TMCContainer.h"
 #include "TError.h"
 #include "TGeoManager.h"
 
@@ -32,7 +31,6 @@ ClassImp(TMCManager);
 
 TMCThreadLocal TMCManager* TMCManager::fgInstance = 0;
 TVirtualMC* TMCManager::fCurrentMCEngine = nullptr;
-TMCContainer* TMCManager::fCurrentMCContainer = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
@@ -50,9 +48,11 @@ TMCManager::TMCManager()
      Fatal("TMCManager", "No user MC application is defined.");
    }
    fMCStackManager = TMCStackManager::Instance();
+   fMCStateManager = TMCStateManager::Instance();
    fNEventsProcessed = 0;
-   fIsConcurrentMode = kFALSE;
-   fNeedPrimaries = kFALSE;
+   // Set true byb default. If in concurrent mode, the TMCManager will take care
+   // that primaries are only generated once per event using this flag.
+   fNeedPrimaries = kTRUE;
 
    fgInstance = this;
 }
@@ -69,45 +69,47 @@ TMCManager::~TMCManager()
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
-/// Enable/Disable the concurrent mode
-///
-void TMCManager::SetConcurrentMode(Bool_t isConcurrent)
-{
-  // If there are already engines registered, the mode cannot be changed anymore
-  // If there is at least one engine, fCurrentMCEngine is set
-  if(fCurrentMCEngine) {
-    Fatal("SetConcurrentMode", "Trying to change concurrent mode while there are already registered engines");
-  }
-  fIsConcurrentMode = isConcurrent;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-///
 /// Register a new VMC
 ///
 
-void TMCManager::RegisterMC(TVirtualMC* mc)
+void TMCManager::RegisterMC(TVirtualMC* newMC)
 {
-  if(!fIsConcurrentMode && fCurrentMCEngine) {
+  // Only allow for one engine to be registered if in concurrent mode
+  if(!fMCStateManager->GetConcurrentMode() && fCurrentMCEngine) {
     Fatal("RegisterMC", "Trying to register another engine while not in concurrent mode");
   }
   // First set the current engine
-  fCurrentMCEngine = mc;
+  fCurrentMCEngine = newMC;
+  // Update values of all user connected TVirtualMC pointers
+  UpdateConnectedEnginePointers();
+  // Set queue for this engine
+  fMCStackManager->SetQueue(newMC);
   // If not in cincurrent mode, nothing else to do
-  if(!fIsConcurrentMode) {
+  if(!fMCStateManager->GetConcurrentMode()) {
     return;
   }
   // If in concurrent mode, add engine to the list of engines
   // make sure, at least engine names are unique
-  for(auto& con : fMCContainers) {
-    if(strcmp(con->fName, mc->GetName()) == 0) {
+  for(auto& mc : fMCEngines) {
+    if(strcmp(newMC->GetName(), mc->GetName()) == 0) {
       Fatal("RegisterMC", "There is already an engine with name %s.", mc->GetName());
     }
   }
-  // Emplace a new TMCContainer providing the TVirtualMC pointer...
-  fMCContainers.push_back(new TMCContainer(mc));
-  // ...and provide static pointerto current container in addition to the engine pointer
-  fCurrentMCContainer = fMCContainers.back();
+  // Insert the new TVirtualMC
+  fMCEngines.push_back(newMC);
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Set all pointers registered to current engine
+///
+
+void TMCManager::UpdateConnectedEnginePointers()
+{
+  for(auto& mcaddress : fOutsideMCPointerAddresses) {
+    *mcaddress = fCurrentMCEngine;
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -117,30 +119,9 @@ void TMCManager::RegisterMC(TVirtualMC* mc)
 
 void TMCManager::TerminateRun()
 {
-  for(auto& con : fMCContainers) {
-    con->fMC->TerminateRun();
+  for(auto& mc : fMCEngines) {
+    mc->TerminateRun();
   }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-///
-/// Get the corresponding selection criteria
-///
-
-TMCSelectionCriteria* TMCManager::GetSelectionCriteria(const char* name)
-{
-   for(auto con : fMCContainers) {
-     if(strcmp(con->fName, name) == 0) {
-       return con->fSelectionCriteria;
-     }
-   }
-   Fatal("GetSelectionCriteria", "There is no engine with name %s.", name);
-   return nullptr;
-}
-
-TMCSelectionCriteria* TMCManager::GetSelectionCriteria()
-{
-   return fCurrentMCContainer->fSelectionCriteria;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -156,48 +137,24 @@ TVirtualMC* TMCManager::GetMC()
 void TMCManager::ConnectToCurrentMC(TVirtualMC*& mc)
 {
   fOutsideMCPointerAddresses.push_back(&mc);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-///
-/// Set the current MCContainer by name and pointer value
-///
-
-void TMCManager::SetCurrentMCContainer(TMCContainer* container)
-{
-  for(auto& con : fMCContainers) {
-    if(con == container) {
-      fCurrentMCContainer = con;
-      fCurrentMCEngine = con->fMC;
-      return;
-    }
-  }
-}
-
-void TMCManager::SetCurrentMCContainer(const char* name)
-{
-  for(auto& con : fMCContainers) {
-    if(strcmp(con->fName, name) == 0) {
-      fCurrentMCContainer = con;
-      fCurrentMCEngine = con->fMC;
-      return;
-    }
+  // IF there is already an engine registered, already set it
+  if(fCurrentMCEngine) {
+    mc = fCurrentMCEngine;
   }
 }
 
 Bool_t TMCManager::GetNextEngine()
 {
   // If there are still tracks on the current stack do nothing
-  if(fCurrentMCContainer->fQueue->GetNtrack() > 0) {
-    Info("GetNextEngine", "There are still %i particles in queue of %s", fCurrentMCContainer->fQueue->GetNtrack(), fCurrentMCContainer->fName);
+  if(fCurrentMCEngine->GetQueue()->GetNtrack() > 0) {
+    Info("GetNextEngine", "There are still %i particles in queue of %s", fCurrentMCEngine->GetQueue()->GetNtrack(), fCurrentMCEngine->GetName());
     return kTRUE;
   }
   // \note Kind of brute force selection
-  for(auto& con : fMCContainers) {
-    if(con->fQueue->GetNtrack() > 0) {
-      fCurrentMCContainer = con;
-      fCurrentMCEngine = fCurrentMCContainer->fMC;
-      Info("GetNextEngine", "There are %i particles in queue of %s", fCurrentMCContainer->fQueue->GetNtrack(), fCurrentMCContainer->fName);
+  for(auto& mc : fMCEngines) {
+    if(mc->GetQueue()->GetNtrack() > 0) {
+      fCurrentMCEngine = mc;
+      Info("GetNextEngine", "There are %i particles in queue of %s", fCurrentMCEngine->GetQueue()->GetNtrack(), fCurrentMCEngine->GetName());
       return kTRUE;
     }
   }
@@ -213,25 +170,24 @@ Bool_t TMCManager::NeedPrimaries() const
 //__________________________________________________________________________
 void TMCManager::InitMCs()
 {
+  // Only available in concurrent mode, abort if not the case
+  if(!fMCStateManager->GetConcurrentMode()) {
+    Fatal("InitMCs", "Not in concurrent mode");
+  }
   // Some user pre init steps
   // At this point the TGeoManager must be there with closed geometry
   if(!gGeoManager || !gGeoManager->IsClosed()) {
     Fatal("InitMCs","Could not find TGeoManager or geometry is still not closed");
   }
-  // \todo Check whether the TMCSelectionCriteria have conflicts among each other
 
-  // Initialize containers
-  for(auto& con : fMCContainers) {
-    Info("InitMCs", "Initialize engine %s", con->fName);
-    // Selection criteria
-    con->fSelectionCriteria->Initialize(gGeoManager);
+  // Initialize engines
+  for(auto& mc : fMCEngines) {
+    Info("InitMCs", "Initialize engine %s", mc->GetName());
     // Notify to use geometry built using TGeo
-    con->fMC->SetRootGeometry();
-    // create queue for engine container and register container to TMCStackManager
-    fMCStackManager->SetQueue(con);
+    mc->SetRootGeometry();
     // Further init steps for the MCs
-    con->fMC->Init();
-    con->fMC->BuildPhysics();
+    mc->Init();
+    mc->BuildPhysics();
   }
 }
 
@@ -241,6 +197,10 @@ void TMCManager::RunMCs(Int_t nofEvents)
   /// Run MC.
   /// \param nofEvents Number of events to be processed
 
+  // Only available in concurrent mode, abort if not the case
+  if(!fMCStateManager->GetConcurrentMode()) {
+    Fatal("RunMCs", "Not in concurrent mode");
+  }
   // Some user code
   //PreRun();
   // First see list of TGeoNavigator objects registered to TGeoManager
@@ -256,7 +216,8 @@ void TMCManager::RunMCs(Int_t nofEvents)
       // registered to the TMCStackManager before
       // \todo Rather use a global state manager to handle that
       fNeedPrimaries = kTRUE;
-      fMCApplication->GeneratePrimaries();
+      fMCApplication->GimmePrimaries();
+      // Important to set flag to false so that the call from the engines to TVirtualMCApplication::GimmePrimaries will be ignored
       fNeedPrimaries = kFALSE;
       /// Basically forward what is on the stack to the queues of the single engines
       if(!fMCStackManager->HasPrimaries()) {
@@ -264,13 +225,11 @@ void TMCManager::RunMCs(Int_t nofEvents)
         continue;
       }
       while(GetNextEngine()) {
-        Info("RunMCs", "Running engine %s", fCurrentMCContainer->fName);
+        Info("RunMCs", "Running engine %s", fCurrentMCEngine->GetName());
         // \note experimental Update the address for all pointers the user has registered
         // for accessing the current engine
-        for(auto& mcaddress : fOutsideMCPointerAddresses) {
-          *mcaddress = fCurrentMCContainer->fMC;
-        }
-        fCurrentMCContainer->fMC->ProcessEvent(i);
+        UpdateConnectedEnginePointers();
+        fCurrentMCEngine->ProcessEvent(i);
       }
       fNEventsProcessed++;
     }
@@ -283,10 +242,10 @@ void TMCManager::RunMCs(Int_t nofEvents)
 
 void TMCManager::Stepping()
 {
-  Info("Stepping", "Stepping for engine %s", fCurrentMCContainer->fName);
+  Info("Stepping", "Stepping for engine %s", fCurrentMCEngine->GetName());
   // Only for more than 1 engine \todo Use a flag for this
-  if(fMCContainers.size() > 1) {
-    fMCStackManager->SuggestTrackForMoving(fCurrentMCContainer);
+  if(fMCEngines.size() > 1) {
+    fMCStackManager->SuggestTrackForMoving(fCurrentMCEngine);
   }
 }
 
@@ -298,8 +257,8 @@ void TMCManager::Stepping()
 void TMCManager::Print() const
 {
   Info("Print", "Status of registered engines");
-  for(auto& con : fMCContainers) {
-    std::cout << "==== Engine: " << con->fName << "====\n";
+  for(auto& mc : fMCEngines) {
+    std::cout << "==== Engine: " << mc->GetName() << "====\n";
   }
   std::cout << std::endl;
 }

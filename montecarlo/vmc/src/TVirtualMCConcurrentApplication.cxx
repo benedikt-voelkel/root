@@ -12,6 +12,8 @@
 
 #include "TVirtualMCConcurrentApplication.h"
 #include "TMCManager.h"
+#include "TMCStateManager.h"
+#include "TMCStackManager.h"
 
 /** \class TVirtualMCConcurrentApplication
     \ingroup vmc
@@ -31,7 +33,7 @@ TVirtualMCConcurrentApplication::TVirtualMCConcurrentApplication(const char *nam
                                              const char *title)
   : TVirtualMCApplication(name, title)
 {
-   fMCManager->SetConcurrentMode();
+   fMCStateManager->SetConcurrentMode();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -42,7 +44,7 @@ TVirtualMCConcurrentApplication::TVirtualMCConcurrentApplication(const char *nam
 TVirtualMCConcurrentApplication::TVirtualMCConcurrentApplication()
   : TVirtualMCApplication()
 {
-   fMCManager->SetConcurrentMode();
+   fMCStateManager->SetConcurrentMode();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -56,23 +58,6 @@ void TVirtualMCConcurrentApplication::InitGeometry()
   InitGeometryConcurrent();
   return;
 }
-
-////////////////////////////////////////////////////////////////////////////////
-///
-/// Further steps for geometry initialisation
-///
-
-void TVirtualMCConcurrentApplication::GeneratePrimaries()
-{
-  // Only push new primaries to the VMC stack if the TMCManager calls this method
-  // If called by an engine, nothing happens.
-  // Correct forwrding of primaries to the engines is done by the TMCManager together
-  // with the TMCStackManager
-  if(fMCManager->NeedPrimaries()) {
-    GeneratePrimariesConcurrent();
-  }
-}
-
 
 ////////////////////////////////////////////////////////////////////////////////
 ///

@@ -15,7 +15,9 @@
 
 #include <vector>
 
-#include "TNamed.h"
+#include "Rtypes.h"
+
+#include "TMCtls.h"
 
 /// States in processing order to check/set the current state the application is in
 enum class EVMCApplicationState : int { kPreInit,											// the very first state, nothing has been done so far
@@ -34,32 +36,39 @@ enum class EVMCApplicationState : int { kPreInit,											// the very first st
 																				kDone													// simulation and all post processing steps done, nothing else to do
 																			};
 
-class TMCStateManager : public TNamed
+class TMCStateManager
 {
 	public:
 
-		static TMCStateManager& Instance()
-		{
-			static TMCStateManager inst;
-			return inst;
-		}
+		static TMCStateManager* Instance();
 		/// Set current state
 		void EnterState(EVMCApplicationState state);
 		/// Get the current state
 		EVMCApplicationState GetCurrentState() const;
 		/// Require specific state and exit if wrong
 		void RequireState(EVMCApplicationState state) const;
+		// \note todo This is more a configuration than a state. Move to a class like TMCRunConfiguration?
+		/// Enable/disable concurrent mode of engines
+		void SetConcurrentMode(Bool_t isConcurrent = kTRUE);
+		/// Get the status of the concurrent mode
+		Bool_t GetConcurrentMode() const;
 
 	private:
-		TMCStateManager()
-			: TNamed( "TMCStateManager", "" )
-		{}
+		TMCStateManager();
 
 	private:
+		// static data members
+	 #if !defined(__CINT__)
+			static TMCThreadLocal TMCStateManager* fgInstance; ///< Singleton instance
+	 #else
+			static                TMCStateManager* fgInstance; ///< Singleton instance
+	 #endif
 		/// The current state
 		EVMCApplicationState fCurrentState = EVMCApplicationState::kPreInit;
 		/// Collection of all previous states
 		std::vector<EVMCApplicationState> fProcessedStates;
+		/// Flag to check status of concurrent run mode
+		Bool_t fIsConcurrentMode;
 
 	ClassDef(TMCStateManager,1)
 };

@@ -25,12 +25,11 @@
 #include "TMath.h"
 
 #include "TMCtls.h"
-#include "TMCSelectionCriteria.h"
 
 class TMCStackManager;
 class TVirtualMC;
-class TMCContainer;
 class TVirtualMCApplication;
+class TMCStateManager;
 
 class TMCManager {
 
@@ -39,35 +38,32 @@ public:
    /// Destructor
    ~TMCManager();
 
-   /// Static access method
+   //
+   // static methods
+   //
+
+   /// Static access method to TMCManager singleton
    static TMCManager* Instance();
+   /// Static access method to current TVirtualMC
+   static TVirtualMC* GetMC();
 
    //
    // action methods
    //
 
-   /// Enable/Disable the concurrent mode
-   void SetConcurrentMode(Bool_t isConcurrent = kTRUE);
    /// Register a transport engine
    void RegisterMC(TVirtualMC* mc);
    /// Initialize MCs
+   /// Only available in concurrent run mode
    void InitMCs();
    /// Running the MCs
+   /// Only available in concurrent run mode
    void RunMCs(Int_t nofEvents);
-   /// Terminate the run for all registered engines
-   void TerminateRun();
    /// At each step decide whether a track has to be moved
    /// \todo Find a more suitable name for thins method
    void Stepping();
-   /// Get the current transport engine
-   static TVirtualMC* GetMC();
-   /// Get the selection criteria of the currently running engine
-   static TMCSelectionCriteria* GetSelectionCriteria();
-   /// Get the selection criteria by engine name
-   TMCSelectionCriteria* GetSelectionCriteria(const char* name);
-   /// Get the selection criteria by engine pointer
-   TMCSelectionCriteria* GetSelectionCriteria(TVirtualMC* mc);
-   /// Pass a pointer from the outside which will be updated whenever the MC changes
+   /// Pass a pointer from the outside which will be updated whenever the
+   /// engine used changes
    /// \note experimental
    void ConnectToCurrentMC(TVirtualMC*& mc);
 
@@ -84,20 +80,26 @@ public:
 
    /// Print status of TMCManager and registered engines
    void Print() const;
+
 private:
-  /// Choose and set the current container by name and pointer
-  void SetCurrentMCContainer(const char* name);
-  void SetCurrentMCContainer(TMCContainer* con);
   /// Check for next engine and set for event processing
   Bool_t GetNextEngine();
+  /// Terminate the run for all registered engines
+  void TerminateRun();
+  /// Set all pointers registered to current engine
+  void UpdateConnectedEnginePointers();
 
-protected:
+private:
+  /// Default constructor
+  TMCManager();
+  /// Flag to tell whether to run in concurrent mode or single engine mode
+  Bool_t fIsConcurrentMode;
+  /// Flag to tell whether primaries should be pushed to the VMC stack
+  Bool_t fNeedPrimaries;
   /// The running TVirtualMCApplication
   TVirtualMCApplication* fMCApplication;
   /// Wrapping engine, stack and criteria
-  std::vector<TMCContainer*> fMCContainers;
-  /// for convenience and immediate usage, forwarding to the outside world
-  static TMCContainer* fCurrentMCContainer;
+  std::vector<TVirtualMC*> fMCEngines;
   /// So far also for convenience
   static TVirtualMC* fCurrentMCEngine;
   /// storing pointer to global TMCStackManager
@@ -106,15 +108,9 @@ protected:
   Int_t fNEventsProcessed;
   /// Pointer to pointer of outside engine
   std::vector<TVirtualMC**> fOutsideMCPointerAddresses;
+  /// Pointer to global state manager
+  TMCStateManager* fMCStateManager;
 
-private:
-
-  /// Default constructor
-  TMCManager();
-  /// Flag to tell whether to run in concurrent mode or single engine mode
-  Bool_t fIsConcurrentMode;
-  /// Flag to tell whether primaries should be pushed to the VMC stack
-  Bool_t fNeedPrimaries;
 
    // static data members
   #if !defined(__CINT__)

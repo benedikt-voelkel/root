@@ -13,10 +13,11 @@
  #include <iostream>
 
 #include "TMCStackManager.h"
+#include "TVirtualMCApplication.h"
+#include "TMCStateManager.h"
 #include "TMCQueue.h"
 #include "TVirtualMCStack.h"
 #include "TVirtualMC.h"
-#include "TMCContainer.h"
 #include "TParticle.h"
 #include "TVector3.h"
 #include "TError.h"
@@ -43,10 +44,15 @@ TMCStackManager::TMCStackManager()
       Fatal("TMCManager",
             "Attempt to create two instances of singleton.");
    }
+   fMCApplication = TVirtualMCApplication::Instance();
+   if(!fMCApplication) {
+     Fatal("TMCManager", "No user MC application is defined.");
+   }
    fMasterStack = nullptr;
    fCurrentTrack = nullptr;
    fCurrentTrackID = -1;
    fLastTrackSuggestedForMoving = kFALSE;
+   fMCStateManager = TMCStateManager::Instance();
    fgInstance = this;
 }
 
@@ -55,7 +61,6 @@ TMCStackManager::TMCStackManager()
 
 TMCStackManager::~TMCStackManager()
 {}
-
 
 TParticle* TMCStackManager::PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
                         Double_t px, Double_t py, Double_t pz, Double_t e,
@@ -97,30 +102,36 @@ TParticle* TMCStackManager::PushTrack(Int_t toBeDone, TParticle* particle,
 
 void TMCStackManager::PushToQueue(TParticle* track)
 {
-  // Invokig the TGeoManager \todo Might cost too much time in the end to
-  // find volume by spatial coordinates
-  TGeoNode* node = gGeoManager->FindNode(track->Vx(), track->Vy(), track->Vz());
-  if(node) {
-    fCurrentVolId = node->GetVolume()->GetNumber();
-    Info("PushToQueue", "Found node with volume id %i", fCurrentVolId);
+  std::cout << track->ID() << std::endl;
+  TVirtualMC* mc = nullptr;
+  if(!fMCStateManager->GetConcurrentMode()) {
+    fMCEngines.front()->GetQueue()->PushTrack(track);
+    return;
   }
-  // First check if the track fits exclusively to criteria of a certain TMCContainer
-  for(auto& con : fMCContainers) {
-    if(TrackFitsExclusively(con)) {
-      con->fQueue->PushTrack(track);
-      Info("PushToQueue", "Push track %i to queue of engine %s", track->ID(), con->fName);
-      return;
-    }
+  // Call function defined by the user to decide where to push a track to
+  fSpecifyEngineForTrack(track, mc);
+  mc->GetQueue()->PushTrack(track);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Forward tracks on fMasterStack to queues of registered engines
+///
+
+void TMCStackManager::InitializeQueuesWithPrimaries()
+{
+  if(fMasterStack->GetNtrack() < 1) {
+    Fatal("InitializeQueuesWithPrimaries", "No primaries found on user VMC stack");
   }
-  // After that do inclusive check for all other engines
-  for(auto& con : fMCContainers) {
-    if(TrackFitsInclusively(con)) {
-      con->fQueue->PushTrack(track);
-      Info("PushToQueue", "Push track %i to queue of engine %s", track->ID(), con->fName);
-      return;
-    }
+  Info("InitializeQueuesWithPrimaries","Push primaries to queues");
+  Int_t trackNumber;
+  TParticle* track = nullptr;
+  // If that point is reached, concurrent mode is enabled and the decision of
+  // which queue to push the tracks to gets more complex
+  while((track = fMasterStack->PopNextTrack(trackNumber))) {
+    PushToQueue(track);
   }
-  Fatal("PushToQueue", "No engine fits the criteria for the track %i", track->ID());
 }
 
 // So far a wrapper around the user stack method
@@ -147,11 +158,11 @@ Int_t TMCStackManager::GetCurrentParentTrackNumber() const
   return fMasterStack->GetCurrentParentTrackNumber();
 }
 
-
-void TMCStackManager::BufferSelectionParameters(TMCContainer* currentContainer)
+// So far a wrapper around the user stack method
+void TMCStackManager::SetCurrentTrack(Int_t trackID)
 {
-  // The only parameter the selection is based upon so far
-  fCurrentVolId = currentContainer->fMC->CurrentVolID(fCurrentVolCopyNo);
+  fCurrentTrackID = trackID;
+  fMasterStack->SetCurrentTrack(trackID);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -159,87 +170,20 @@ void TMCStackManager::BufferSelectionParameters(TMCContainer* currentContainer)
 /// Check whether track and engine parameters meeting criteria inclusively
 ///
 
-void TMCStackManager::SuggestTrackForMoving(TMCContainer* currentContainer)
+void TMCStackManager::SuggestTrackForMoving(TVirtualMC* currentMC)
 {
-  // Called from TMCManager::Stepping for each step
-
-  // Check whther a track is leaving the current volume
-  if(currentContainer->fMC->IsTrackExiting()) {
-    fLastTrackSuggestedForMoving = kTRUE;
-    return;
-  }
-  // The last track left a volume, parameters were buffered, now check selection
-  // criteria in new volume
-  if(fLastTrackSuggestedForMoving) {
-    // Store the parameters of the current track and container
-    BufferSelectionParameters(currentContainer);
-    // Add/try some general checks to see whether more sofisticated ones are necessary
-    // maybe even at the level of the TMCManager so that this method has not even to
-    // be called
-
-    // First check if the track fits exclusively to criteria of a certain TMCContainer
-    for(auto& con : fMCContainers) {
-      if(TrackFitsExclusively(con)) {
-        // If another engine fits, stop track at the current one
-        if(con != currentContainer) {
-          MoveTrack(currentContainer->fMC, con->fQueue);
-          // Since the track has been moved the current engine needs to stop further transport
-          // \todo Should the decision be left to the caller?
-          currentContainer->fMC->StopTrack();
-        }
-        fLastTrackSuggestedForMoving = kFALSE;
-        return;
-      }
+  TVirtualMC* targetEngine = nullptr;
+  if(fSuggestTrackForMoving(currentMC, targetEngine)) {
+    // \note Check for debugging
+    if(!targetEngine) {
+      Fatal("SuggestTrackForMoving", "No target engine specified");
     }
-
-    // After that do inclusive check for all other engines
-    for(auto& con : fMCContainers) {
-      if(TrackFitsInclusively(con)) {
-        // If another engine fits, stop track at the current one
-        if(con != currentContainer) {
-          MoveTrack(currentContainer->fMC, con->fQueue);
-          // Since the track has been moved the current engine needs to stop further transport
-          // \todo Should the decision be left to the caller?
-          currentContainer->fMC->StopTrack();
-        }
-        fLastTrackSuggestedForMoving = kFALSE;
-        return;
-      }
+    if(currentMC != targetEngine) {
+      Info("SuggestTrackForMoving","Track moved to engine %s", targetEngine->GetName());
+      MoveTrack(currentMC, targetEngine->GetQueue());
+      currentMC->StopTrack();
     }
-
-    // Normally, we shouldn't end up here since a general check whether the entire
-    // simulated volume is covered should have been done before a run is triggered
-    // ==> \todo
-    Fatal("SuggestTrackForMoving", "No engine fits the criteria for the current track %i which was supposed to be moved from engine %s", fMasterStack->GetCurrentTrackNumber(), currentContainer->fName);
   }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-///
-/// Check whether track and engine parameters meeting criteria exclusively
-///
-
-Bool_t TMCStackManager::TrackFitsExclusively(TMCContainer* container) const
-{
-  /// \todo \note The only criterium to be met is the current volume id, also not caring about the copy number
-  if(container->fSelectionCriteria->FitsExclusively(fCurrentVolId)) {
-    return kTRUE;
-  }
-  return kFALSE;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-///
-/// Check whether track and engine parameters meeting criteria inclusively
-///
-
-Bool_t TMCStackManager::TrackFitsInclusively(TMCContainer* container) const
-{
-  /// \todo \note The only criterium to be met is the current volume id, also not caring about the copy number
-  if(container->fSelectionCriteria->FitsInclusively()) {
-    return kTRUE;
-  }
-  return kFALSE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -273,22 +217,46 @@ void TMCStackManager::MoveTrack(TVirtualMC* currentMC, TMCQueue* targetQueue)
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
+/// Set the function called in stepping to check whether a track needs to be moved
+///
+void TMCStackManager::RegisterSuggestTrackForMoving(
+                            std::function<Bool_t(TVirtualMC*, TVirtualMC*&)> f)
+{
+  fSuggestTrackForMoving = f;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Set the function called in stepping to check whether a track needs to be moved
+///
+void TMCStackManager::RegisterSpecifyEngineForTrack(
+                             std::function<Bool_t(TParticle*, TVirtualMC*&)> f)
+{
+  fSpecifyEngineForTrack = f;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
 /// Assign a queue for a given engine
 ///
 
-void TMCStackManager::SetQueue(TMCContainer* container)
+void TMCStackManager::SetQueue(TVirtualMC* mc)
 {
-  // Warn and delete if there is already a queue set for this container
-  if(container->fQueue) {
-    Warning("SetQueue", "There is already a queue for MC %s which will now be replaced and deleted", container->fName);
-    delete container->fQueue;
+  // Warn and delete if there is already a queue set for this engine
+  if(mc->GetQueue()) {
+    Warning("SetQueue", "There is already a queue for MC %s which will now be replaced and deleted", mc->GetName());
+    delete mc->GetQueue();
   }
   // Set queue
-  container->fQueue = new TMCQueue();
-  container->fMC->SetQueue(container->fQueue);
-  // Additionally, register container to this Manager for stack/queue handling
-  fMCContainers.push_back(container);
+  mc->SetQueue(new TMCQueue());
+  // Additionally, register engine to this Manager for stack/queue handling
+  fMCEngines.push_back(mc);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Register the user VMC stack to the manager
+///
 
 void TMCStackManager::RegisterStack(TVirtualMCStack* stack)
 {
@@ -299,12 +267,6 @@ void TMCStackManager::RegisterStack(TVirtualMCStack* stack)
   fMasterStack = stack;
 }
 
-void TMCStackManager::SetCurrentTrack(Int_t trackID)
-{
-  fCurrentTrackID = trackID;
-  fMasterStack->SetCurrentTrack(trackID);
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 ///
 /// Initialize engine queues with primaries
@@ -312,15 +274,15 @@ void TMCStackManager::SetCurrentTrack(Int_t trackID)
 
 Bool_t TMCStackManager::HasPrimaries()
 {
-  // \todo So far check here again whether there are containers registered
-  if(fMCContainers.empty()) {
-    Fatal("HasPrimaries", "No TMCContainers registered");
+  // \todo So far check here again whether there are engines registered
+  if(fMCEngines.empty()) {
+    Fatal("HasPrimaries", "No MC engines registered");
     return kFALSE;
   }
   if(fMasterStack->GetNtrackToDo() < 1) {
     // No tracks to do on stack so check the individual queues
-    for(auto& con : fMCContainers) {
-      if(con->fQueue->GetNtrack() > 0) {
+    for(auto& mc : fMCEngines) {
+      if(mc->GetQueue()->GetNtrack() > 0) {
         return kTRUE;
       }
     }
@@ -334,7 +296,6 @@ Bool_t TMCStackManager::HasPrimaries()
     // \todo Setting the track id manually should not be necessary
     track->SetID(trackId);
     PushToQueue(track);
-    //fMCContainers.back()->fQueue->PushTrack(track);
   }
   return kTRUE;
 }

@@ -43,12 +43,6 @@ public:
    virtual void InitGeometryConcurrent() = 0;
    virtual void InitGeometry() override;
 
-   /// Generate primary particles
-   /// Either push particles to the TVirtualMCStack directly or do it via the
-   /// TMCStackManager::PushTrack(...)
-   virtual void GeneratePrimariesConcurrent() = 0;
-   virtual void GeneratePrimaries() override;
-
    /// Define actions at the beginning of the event
    virtual void BeginEventConcurrent() = 0;
    virtual void BeginEvent() override;

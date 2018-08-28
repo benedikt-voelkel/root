@@ -17,6 +17,9 @@
 // ---------------------
 // Interface to a user defined particles stack.
 //
+
+#include <functional>
+
 #include "TObject.h"
 
 #include "TMCtls.h"
@@ -25,9 +28,9 @@
 class TParticle;
 class TMCQueue;
 class TVirtualMCStack;
-class TMCContainer;
 class TVirtualMC;
-
+class TVirtualMCApplication;
+class TMCStateManager;
 
 class TMCStackManager {
 
@@ -66,8 +69,8 @@ public:
    TParticle* PushTrack(Int_t toBeDone, TParticle* particle, TMCProcess mech, Int_t& ntr);
 
     /// The outside world might suggest that the track handled by the engine
-    /// of the current container needs to be moved
-    void SuggestTrackForMoving(TMCContainer* container);
+    /// of the current engine needs to be moved
+    void SuggestTrackForMoving(TVirtualMC* currentMC);
 
    /// The stack has to provide two pop mechanisms:
    /// The first pop mechanism required.
@@ -110,19 +113,32 @@ public:
    /// Number of the parent of the current track
    Int_t      GetCurrentParentTrackNumber() const;
 
-   /// Set a  new queue for an engine and register this container
-   /// Nobody but the TMCStackManager should ever need to manage a queue and engines
-   /// are inly allowed to pop from these
-   void SetQueue(TMCContainer* container);
-
    /// Set the current track id from the outside
    void SetCurrentTrack(Int_t trackID);
+
+   //
+   // Set methods
+   //
+
+   /// Set the function called in stepping to check whether a track needs to be moved
+   void RegisterSuggestTrackForMoving(std::function<Bool_t(TVirtualMC*, TVirtualMC*&)> f);
+   /// Set the function called to decide to qhich queue a primary is pushed
+   void RegisterSpecifyEngineForTrack(std::function<Bool_t(TParticle*, TVirtualMC*&)> f);
+
+
+   /// Set a  new queue for an engine and register this engine
+   /// Nobody but the TMCStackManager should ever need to manage a queue and engines
+   /// are inly allowed to pop from these
+   void SetQueue(TVirtualMC* mc);
 
    /// Register the master/global stack to the TMCStackManager
    void RegisterStack(TVirtualMCStack* stack);
 
-   /// Forward primaries from the global stack to the engine queues wrt the respective TMCSelectionCriteria
+   /// Check whether there are primaries on the global TVirtualMCStack
    Bool_t HasPrimaries();
+
+   /// Forward primaries from global VMC stack to engine queues
+   void InitializeQueuesWithPrimaries();
 
    //
    // Verbosity
@@ -134,13 +150,10 @@ public:
 
    /// Constructor prvate for save singleton behaviour
    TMCStackManager();
-   /// Push a new track to a queue of the stored TMCContainers
+   /// Push a new track to a queue of the stored TVirtualMC
    void PushToQueue(TParticle* track);
    /// Buffer current parameters the selection is based on
-   void BufferSelectionParameters(TMCContainer* currentContainer);
-   /// Check whether a track meets the selection criteria of a given TMCContainer
-   Bool_t TrackFitsExclusively(TMCContainer* container) const;
-   Bool_t TrackFitsInclusively(TMCContainer* container) const;
+   void BufferSelectionParameters(TVirtualMC* currentMC);
    /// Move a track handled byb an engine to a new target queue
    void MoveTrack(TVirtualMC* currentMC, TMCQueue* targetQueue);
 
@@ -151,14 +164,20 @@ public:
   #else
      static                TMCStackManager* fgInstance; ///< Singleton instance
   #endif
+    TVirtualMCApplication*       fMCApplication;    ///< Pointer to global TVirtualMCApplication
     TVirtualMCStack*             fMasterStack;      ///< The master stack with coherent history, this is what the outside world sees
     TParticle*                   fCurrentTrack;     ///< Pointer to current track
     Int_t                        fCurrentTrackID;   ///< Only the track id
-    std::vector<TMCContainer*>   fMCContainers;     ///< Store MC containers for stack/queue management based on TMCSelectionCriteria
+    std::vector<TVirtualMC*>     fMCEngines;        ///< Store MCs for stack/queue management
     // Information for the seletion of engines when moving tracks (or attempt to)
     Int_t                        fCurrentVolId;     ///< Buffer for the current volume id
     Int_t                        fCurrentVolCopyNo; ///< Buffer the copy number of the current volume
     Bool_t                       fLastTrackSuggestedForMoving; ///< Flag the current track since it might need to be moved in the next step
+    TMCStateManager*             fMCStateManager;              ///< Pointer to global state manager
+    /// Decide where to transfer a track to given user conditions
+    std::function<Bool_t(TVirtualMC*, TVirtualMC*&)> fSuggestTrackForMoving;
+    /// Decide where to push a track to which has not been transported
+    std::function<Bool_t(TParticle*, TVirtualMC*&)>  fSpecifyEngineForTrack;
 
    ClassDef(TMCStackManager,1) //Interface to a particles stack
 };

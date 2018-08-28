@@ -24,9 +24,7 @@
 #pragma link C++ class  TMCQueue+;
 #pragma link C++ class  TMCVerbose+;
 #pragma link C++ class  TGeoMCGeometry+;
-#pragma link C++ class  TMCSelectionCriteria+;
 #pragma link C++ class  TMCStateManager+;
-#pragma link C++ class  TMCContainer+;
 
 
 #endif

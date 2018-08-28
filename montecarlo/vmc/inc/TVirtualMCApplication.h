@@ -24,6 +24,8 @@
 #include "TMCtls.h"
 
 class TMCManager;
+class TMCStateManager;
+class TMCStackManager;
 
 class TVirtualMCApplication : public TNamed {
 
@@ -53,6 +55,10 @@ public:
    /// 3) ConstructOpGeometry
    /// Do not override this method
    virtual void ConstructUserGeometry();
+
+   /// Generating primaries and invoke the TMCStackManager to initialize the
+   /// VMC queues
+   virtual void GimmePrimaries();
 
 
    // --------------- Current status ---------------------
@@ -141,6 +147,11 @@ public:
    ///        single engine only
    /// 2) handles different engines in case of a concurrent run
    TMCManager* fMCManager;
+   /// Provide the TMCStackManager which is the interface between the TVirtualMCStack
+   /// defined by the user and the single VMCs and their queues
+   TMCStackManager* fMCStackManager;
+   /// Ponter to global state manager
+   TMCStateManager* fMCStateManager;
 
 private:
    // static data members

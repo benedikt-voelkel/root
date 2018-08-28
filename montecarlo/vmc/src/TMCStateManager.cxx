@@ -22,6 +22,15 @@ Singleton for global state management
 
 ClassImp(TMCStateManager);
 
+TMCThreadLocal TMCStateManager* TMCStateManager::fgInstance = 0;
+
+TMCStateManager::TMCStateManager()
+{
+  fgInstance = this;
+  // Set the non-concurrent mode as default
+  fIsConcurrentMode = kFALSE;
+}
+
 void TMCStateManager::EnterState(EVMCApplicationState state)
 {
   // remember that state...
@@ -41,4 +50,22 @@ void TMCStateManager::RequireState(EVMCApplicationState state) const
     Fatal("TMCStateManager::RequireState", "Wrong state... Exit");
     exit(1);
   }
+}
+
+void TMCStateManager::SetConcurrentMode(Bool_t isConcurrentMode)
+{
+  fIsConcurrentMode = isConcurrentMode;
+}
+
+Bool_t TMCStateManager::GetConcurrentMode() const
+{
+  return fIsConcurrentMode;
+}
+
+TMCStateManager* TMCStateManager::Instance()
+{
+  if(!fgInstance) {
+    new TMCStateManager();
+  }
+  return fgInstance;
 }

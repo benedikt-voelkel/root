@@ -11,6 +11,8 @@
  *************************************************************************/
 
 #include "TVirtualMCApplication.h"
+#include "TMCStateManager.h"
+#include "TMCStackManager.h"
 #include "TMCManager.h"
 #include "TError.h"
 #include "TGeoManager.h"
@@ -41,6 +43,8 @@ TVirtualMCApplication::TVirtualMCApplication(const char *name,
    }
    fgInstance = this;
    fMCManager = TMCManager::Instance();
+   fMCStackManager = TMCStackManager::Instance();
+   fMCStateManager = TMCStateManager::Instance();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -80,6 +84,18 @@ void TVirtualMCApplication::ConstructUserGeometry()
   }
   MisalignGeometry();
   ConstructOpGeometry();
+}
+
+void TVirtualMCApplication::GimmePrimaries()
+{
+  // Only push new primaries to the VMC stack if the TMCManager calls this method
+  // If called by an engine, nothing happens.
+  // Correct forwrding of primaries to the engines is done by the TMCManager together
+  // with the TMCStackManager
+  if(fMCManager->NeedPrimaries()) {
+    GeneratePrimaries();
+    fMCStackManager->InitializeQueuesWithPrimaries();
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
