@@ -18,7 +18,7 @@
 #include "TMCQueue.h"
 #include "TVirtualMCStack.h"
 #include "TVirtualMC.h"
-#include "TParticle.h"
+#include "TTrack.h"
 #include "TVector3.h"
 #include "TError.h"
 #include "TGeoManager.h"
@@ -53,6 +53,7 @@ TMCStackManager::TMCStackManager()
    fCurrentTrackID = -1;
    fLastTrackSuggestedForMoving = kFALSE;
    fMCStateManager = TMCStateManager::Instance();
+   fPseudoTracks.clear();
    fgInstance = this;
 }
 
@@ -60,47 +61,43 @@ TMCStackManager::TMCStackManager()
 /// Destructor
 
 TMCStackManager::~TMCStackManager()
-{}
+{
+  // Clear the stack which is used for all intermediate tracks
+  ClearPseudoStack();
+}
 
 void TMCStackManager::PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
-                        Double_t px, Double_t py, Double_t pz, Double_t e,
-                        Double_t vx, Double_t vy, Double_t vz, Double_t tof,
-                        Double_t polx, Double_t poly, Double_t polz,
-                        TMCProcess mech, Int_t& ntr, Double_t weight,
-                        Int_t is)
+                                Double_t px, Double_t py, Double_t pz,
+                                Double_t e, Double_t vx, Double_t vy,
+                                Double_t vz, Double_t tof, Double_t polx,
+                                Double_t poly, Double_t polz,
+                                Int_t geoStateIndex, TMCProcess mech,
+                                Int_t& ntr, Double_t weight, Int_t is)
 {
   // Needs not to be done anymore since it will be forwarded to the queue of the
   // responsible engine
   // \todo If a track is pushed while transporting directly forward it to a queue, set toBeDone=0
-  fMasterStack->PushTrack(0, parent, pdg, px, py, pz, e, vx, vy, vz,
-                            tof, polx, poly, polz, mech, ntr, weight, is);
+  fMasterStack->PushTrack(0, parent, pdg, px, py, pz, e, vx, vy, vz, tof, polx,
+                          poly, polz, mech, ntr, weight, is);
 
   // \note \todo That is a workaround to set the track ID given the current interfaces
-  // is TVirtualMCStack
+  // of TVirtualMCStack. In the future the TVirtualMCStack should be responsible
+  // for doing that
   Int_t trackNumberCache = fMasterStack->GetCurrentTrackNumber();
   fMasterStack->SetCurrentTrack(ntr);
-  TParticle* track = fMasterStack->GetCurrentTrack();
-  track->SetID(ntr);
+  TTrack* track = fMasterStack->GetCurrentTrack();
+  track->Id(ntr);
+  // Set the state pushed in the TGeoNavigator
+  track->GeoStateIndex(geoStateIndex);
+  // Reset to actual current track
   fMasterStack->SetCurrentTrack(trackNumberCache);
-  // If the track is toBeDone it needs to be forwarded to the queue of the
-  // responsible engine
 
+  // If track is flagged toBeDone it needs to be forwarded to the queue of the
+  // responsible engine
   if(toBeDone) {
     /// \todo Make that more efficient, maybe already create a particle pointer here?!
     PushToQueue(track);
   }
-}
-
-// \todo Does it make sence to encode the production in the particle object?
-// \note \todo Unify the usage of the first mother as the actual parent
-void TMCStackManager::PushTrack(Int_t toBeDone, TParticle* particle,
-                                TMCProcess mech, Int_t& ntr)
-{
-  TVector3 v;
-  particle->GetPolarisation(v);
-  PushTrack(toBeDone, particle->GetFirstMother(), particle->GetPdgCode(), particle->Px(), particle->Py(),
-            particle->Pz(), particle->Energy(), particle->Vx(), particle->Vy(), particle->Vz(),
-            particle->T(), v.X(), v.Y(), v.Z(), mech, ntr, particle->GetWeight(), particle->GetStatusCode());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -108,9 +105,9 @@ void TMCStackManager::PushTrack(Int_t toBeDone, TParticle* particle,
 /// Find the right queue to push this track to
 ///
 
-void TMCStackManager::PushToQueue(TParticle* track)
+void TMCStackManager::PushToQueue(TTrack* track)
 {
-  std::cout << track->ID() << std::endl;
+  std::cout << track->Id() << std::endl;
   TVirtualMC* mc = nullptr;
   if(!fMCStateManager->GetConcurrentMode()) {
     fMCEngines.front()->GetQueue()->PushTrack(track);
@@ -121,28 +118,70 @@ void TMCStackManager::PushToQueue(TParticle* track)
   mc->GetQueue()->PushTrack(track);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Push an internal TTrack used internally when engines are switched
+///
+
+void TMCStackManager::PushPseudoTrack(TTrack* pseudoTrack)
+{
+  fPseudoTracks.push_back(pseudoTrack);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Remove all pseudo tracks used to keep track of moved tracks
+///
+
+void TMCStackManager::ClearPseudoStack()
+{
+  for(auto& track : fPseudoTracks) {
+    delete track;
+  }
+  fPseudoTracks.clear();
+}
+
+void TMCStackManager::NotifyOnFinishedEvent()
+{
+  ClearPseudoStack();
+  //if(fStackExportMode == EStackExportMode::kPerEvent) {
+    //Info("NotifyOnFinishedEvent","Export stack to ROOT file");
+    //ExportStack();
+  //}
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
 /// Forward tracks on fMasterStack to queues of registered engines
 ///
 
-void TMCStackManager::InitializeQueuesWithPrimaries()
+void TMCStackManager::InitializeQueuesWithPrimaries(Bool_t isNewEvent)
 {
+  if(isNewEvent) {
+    NotifyOnFinishedEvent();
+  }
   if(fMasterStack->GetNtrack() < 1) {
     Fatal("InitializeQueuesWithPrimaries", "No primaries found on user VMC stack");
   }
   Info("InitializeQueuesWithPrimaries","Push primaries to queues");
   Int_t trackNumber;
-  TParticle* track = nullptr;
+  TTrack* track = nullptr;
   // If that point is reached, concurrent mode is enabled and the decision of
   // which queue to push the tracks to gets more complex
   while((track = fMasterStack->PopNextTrack(trackNumber))) {
     // \note \todo Need to set track number here since the TVirtualMCStack does not
     // provide this (yet)
-    track->SetID(trackNumber);
+    track->Id(trackNumber);
+    // Also, since tracks might be pushed to the fMasterStack by the directly
+    // by the user, this track cannot have a geoStateIndex. Set it to -1. In any
+    // case for a real primary there wouldn't be an Initialized state at that
+    // point, at least in general.
+    track->GeoStateIndex(-1);
     PushToQueue(track);
   }
+  // \todo Use information prvided by the TMCStateManager in the future
+  // \note Also, setting this here means that
 }
 
 // So far a wrapper around the user stack method
@@ -192,7 +231,6 @@ void TMCStackManager::SuggestTrackForMoving(TVirtualMC* currentMC)
     if(currentMC != targetEngine) {
       Info("SuggestTrackForMoving","Track moved to engine %s", targetEngine->GetName());
       MoveTrack(currentMC, targetEngine->GetQueue());
-      currentMC->StopTrack();
     }
   }
 }
@@ -207,21 +245,28 @@ void TMCStackManager::MoveTrack(TVirtualMC* currentMC, TMCQueue* targetQueue)
 
   TLorentzVector position;
   TLorentzVector momentum;
-  // Time of flight is encoded using TVirtualMC::TrackPosition(TLorentzVector)
+  // Extract spatial and momentum state
+  // \not Time of flight is encoded using TVirtualMC::TrackPosition(TLorentzVector)
   currentMC->TrackPosition(position);
   currentMC->TrackMomentum(momentum);
-  TParticle* currentTrack = fMasterStack->GetCurrentTrack();
-  // \todo Also push the state of the navigator so that it can be popped directly
-  // when this track is transported further to save time
+  TTrack* currentTrack = fMasterStack->GetCurrentTrack();
   Info("MoveTrack", "Track %i will be moved from %s", fMasterStack->GetCurrentTrackNumber(), currentMC->GetName());
-  targetQueue->PushTrack(new TParticle(fMasterStack->GetCurrentTrackNumber(),
-                                  currentTrack->GetPdgCode(),
-                                  currentTrack->GetStatusCode(),
-                                  currentTrack->GetFirstMother(),
-                                  -1,
-                                  currentTrack->GetFirstDaughter(),
-                                  currentTrack->GetLastDaughter(),
-                                  momentum, position));
+  // This is a pseudo track pointer, deletion will be taken care of by the TMCStackManager
+  // The navigation status is pushed internally in the navigator and the corresponding
+  // index is saved in the track object
+  TTrack* pseudoTrack = new TTrack(currentTrack->Id(),
+                                   currentTrack->GetPdgCode(),
+                                   currentTrack->GetStatusCode(),
+                                   currentTrack->GetFirstMother(),
+                                   -1,
+                                   currentTrack->GetFirstDaughter(),
+                                   currentTrack->GetLastDaughter(),
+                                   momentum, position, gGeoManager->PushPoint());
+  // Cache this pseudo track to keep track of it
+  PushPseudoTrack(pseudoTrack);
+  // ...and push it to the target queue
+  targetQueue->PushTrack(pseudoTrack);
+  currentMC->StopTrack();
    // \todo So far only stacking track ids, but also be able to see from where to where in the end
    //fTrackIdsMoved.push_back(fMasterStack->GetCurrentTrackNumber());
 }
@@ -241,7 +286,7 @@ void TMCStackManager::RegisterSuggestTrackForMoving(
 /// Set the function called in stepping to check whether a track needs to be moved
 ///
 void TMCStackManager::RegisterSpecifyEngineForTrack(
-                             std::function<Bool_t(TParticle*, TVirtualMC*&)> f)
+                             std::function<Bool_t(TTrack*, TVirtualMC*&)> f)
 {
   fSpecifyEngineForTrack = f;
 }
@@ -288,7 +333,6 @@ Bool_t TMCStackManager::HasPrimaries()
   // \todo So far check here again whether there are engines registered
   if(fMCEngines.empty()) {
     Fatal("HasPrimaries", "No MC engines registered");
-    return kFALSE;
   }
   if(fMasterStack->GetNtrackToDo() < 1) {
     // No tracks to do on stack so check the individual queues
@@ -298,15 +342,6 @@ Bool_t TMCStackManager::HasPrimaries()
       }
     }
     return kFALSE;
-  }
-  TParticle* track = nullptr;
-  Int_t trackId;
-  Info("InitializeQueuesForPrimaries", "Push primaries to queues");
-
-  while(( track = fMasterStack->PopNextTrack(trackId) )) {
-    // \todo Setting the track id manually should not be necessary
-    track->SetID(trackId);
-    PushToQueue(track);
   }
   return kTRUE;
 }

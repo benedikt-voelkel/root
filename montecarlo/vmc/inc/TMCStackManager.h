@@ -25,12 +25,20 @@
 #include "TMCtls.h"
 #include "TMCProcess.h"
 
-class TParticle;
+class TTrack;
 class TMCQueue;
 class TVirtualMCStack;
 class TVirtualMC;
 class TVirtualMCApplication;
 class TMCStateManager;
+
+
+/// Specify the mode of stack export, either per event or per run
+/// In the latter case all tracks are dumped into one event. Note, that a TTrack
+/// itself does not know to which event it belongs so that information is lost
+/// in that case.
+//enum class EStackExportMode : Int_t {kPerEvent, kPerRun};
+
 
 class TMCStackManager {
 
@@ -60,13 +68,11 @@ public:
    /// - weight     - particle weight
    /// - is         - generation status code
    void PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
-                           Double_t px, Double_t py, Double_t pz, Double_t e,
-                           Double_t vx, Double_t vy, Double_t vz, Double_t tof,
-                           Double_t polx, Double_t poly, Double_t polz,
-                           TMCProcess mech, Int_t& ntr, Double_t weight,
-                           Int_t is);
-
-   void PushTrack(Int_t toBeDone, TParticle* particle, TMCProcess mech, Int_t& ntr);
+                  Double_t px, Double_t py, Double_t pz, Double_t e,
+                  Double_t vx, Double_t vy, Double_t vz, Double_t tof,
+                  Double_t polx, Double_t poly, Double_t polz,
+                  Int_t geoStateIndex, TMCProcess mech, Int_t& ntr,
+                  Double_t weight, Int_t is);
 
     /// The outside world might suggest that the track handled by the engine
     /// of the current engine needs to be moved
@@ -75,12 +81,12 @@ public:
    /// The stack has to provide two pop mechanisms:
    /// The first pop mechanism required.
    /// Pop all particles with toBeDone = 1, both primaries and seconadies
-   //virtual TParticle* PopNextTrack(Int_t& itrack) = 0;
+   //virtual TTrack* PopNextTrack(Int_t& itrack) = 0;
 
    /// The second pop mechanism required.
    /// Pop only primary particles with toBeDone = 1, stacking of secondaries
    /// is done by MC
-   //virtual TParticle* PopPrimaryForTracking(Int_t i) = 0;
+   //virtual TTrack* PopPrimaryForTracking(Int_t i) = 0;
 
    //
    // Set methods
@@ -88,7 +94,7 @@ public:
 
 
    /// Get a notification from a queue or an engine about the tracks which is processed
-   //void               NotifyOnProcessedTrack(TParticle* particle);
+   //void               NotifyOnProcessedTrack(TTrack* track);
    //void               NotifyOnProcessedTrack(Int_t trackID);
 
    //
@@ -105,7 +111,7 @@ public:
    Int_t      GetNprimary()  const;
 
    /// Current track particle
-   TParticle* GetCurrentTrack() const { return fCurrentTrack; }
+   TTrack* GetCurrentTrack() const { return fCurrentTrack; }
 
    /// Current track number
    Int_t      GetCurrentTrackNumber() const;
@@ -123,7 +129,7 @@ public:
    /// Set the function called in stepping to check whether a track needs to be moved
    void RegisterSuggestTrackForMoving(std::function<Bool_t(TVirtualMC*, TVirtualMC*&)> f);
    /// Set the function called to decide to qhich queue a primary is pushed
-   void RegisterSpecifyEngineForTrack(std::function<Bool_t(TParticle*, TVirtualMC*&)> f);
+   void RegisterSpecifyEngineForTrack(std::function<Bool_t(TTrack*, TVirtualMC*&)> f);
 
 
    /// Set a  new queue for an engine and register this engine
@@ -137,9 +143,19 @@ public:
    /// Check whether there are primaries on the global TVirtualMCStack
    Bool_t HasPrimaries();
 
-   /// Forward primaries from global VMC stack to engine queues
-   void InitializeQueuesWithPrimaries();
+   /// Forward primaries from global VMC stack to engine queues. By default it
+   /// is suggested that this means a new event is started.
+   void InitializeQueuesWithPrimaries(Bool_t isNewEvent = kTRUE);
 
+   /// Notify the TMCStackManager that an event has finished.
+   void NotifyOnFinishedEvent();
+
+   /// Export the stack to a ROOT file
+   //void ExportStack();
+   /// Import a stack from a ROOT file
+   //void ImportStack();
+   /// Set the ROOT file to which/from where a stack should be exported/imported
+   //void SetStackFileName(const char* stackFileName);
    //
    // Verbosity
    //
@@ -151,11 +167,15 @@ public:
    /// Constructor prvate for save singleton behaviour
    TMCStackManager();
    /// Push a new track to a queue of the stored TVirtualMC
-   void PushToQueue(TParticle* track);
+   void PushToQueue(TTrack* track);
    /// Buffer current parameters the selection is based on
    void BufferSelectionParameters(TVirtualMC* currentMC);
    /// Move a track handled byb an engine to a new target queue
    void MoveTrack(TVirtualMC* currentMC, TMCQueue* targetQueue);
+   /// Push a track to pseudo stack
+   void PushPseudoTrack(TTrack* pseudoTrack);
+   /// Clear the psuedo stack
+   void ClearPseudoStack();
 
   private:
    // static data members
@@ -166,7 +186,7 @@ public:
   #endif
     TVirtualMCApplication*       fMCApplication;    ///< Pointer to global TVirtualMCApplication
     TVirtualMCStack*             fMasterStack;      ///< The master stack with coherent history, this is what the outside world sees
-    TParticle*                   fCurrentTrack;     ///< Pointer to current track
+    TTrack*                      fCurrentTrack;     ///< Pointer to current track
     Int_t                        fCurrentTrackID;   ///< Only the track id
     std::vector<TVirtualMC*>     fMCEngines;        ///< Store MCs for stack/queue management
     // Information for the seletion of engines when moving tracks (or attempt to)
@@ -174,10 +194,11 @@ public:
     Int_t                        fCurrentVolCopyNo; ///< Buffer the copy number of the current volume
     Bool_t                       fLastTrackSuggestedForMoving; ///< Flag the current track since it might need to be moved in the next step
     TMCStateManager*             fMCStateManager;              ///< Pointer to global state manager
+    std::vector<TTrack*>         fPseudoTracks;                ///< Pseudo tracks cached e.g. when tracks are moved between engines
     /// Decide where to transfer a track to given user conditions
     std::function<Bool_t(TVirtualMC*, TVirtualMC*&)> fSuggestTrackForMoving;
     /// Decide where to push a track to which has not been transported
-    std::function<Bool_t(TParticle*, TVirtualMC*&)>  fSpecifyEngineForTrack;
+    std::function<Bool_t(TTrack*, TVirtualMC*&)>  fSpecifyEngineForTrack;
 
    ClassDef(TMCStackManager,1) //Interface to a particles stack
 };

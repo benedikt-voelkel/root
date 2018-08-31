@@ -23,7 +23,7 @@
 #include "TObject.h"
 #include "TMCProcess.h"
 
-class TParticle;
+class TTrack;
 
 class TMCQueue : public TObject {
 
@@ -39,10 +39,10 @@ public:
    //
    /// Used to push tracks by the TMCStackManager only
    // \todo Make it private and make TMCStackManager a friend class?
-   void PushTrack(TParticle* particle);
+   void PushTrack(TTrack* track);
 
    /// Only pop tracks, since that's a queue all tracks are supposed to be processed
-   TParticle* PopNextTrack();
+   TTrack* PopNextTrack();
 
    //
    // Get methods
@@ -52,7 +52,7 @@ public:
    Int_t      GetNtrack()    const;
 
  private:
-   std::queue<TParticle*> fTracks;
+   std::queue<TTrack*> fTracks;
 
    ClassDef(TMCQueue,1) //Interface to a particles stack
 };

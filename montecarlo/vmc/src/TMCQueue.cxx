@@ -11,7 +11,7 @@
  *************************************************************************/
 
 #include "TMCQueue.h"
-#include "TParticle.h"
+#include "TTrack.h"
 #include "TVector3.h"
 
 /** \class TMCQueue
@@ -40,9 +40,9 @@ TMCQueue::~TMCQueue()
 }
 
 //_____________________________________________________________________________
-void TMCQueue::PushTrack(TParticle* particle)
+void TMCQueue::PushTrack(TTrack* track)
 {
-  fTracks.push(particle);
+  fTracks.push(track);
 }
 
 //_____________________________________________________________________________
@@ -52,7 +52,7 @@ Int_t TMCQueue::GetNtrack() const
 }
 
 //_____________________________________________________________________________
-TParticle* TMCQueue::PopNextTrack()
+TTrack* TMCQueue::PopNextTrack()
 {
 /// Get next particle for tracking from the stack.
 /// \return        The popped particle object
@@ -61,11 +61,11 @@ TParticle* TMCQueue::PopNextTrack()
     return nullptr;
   }
 
-  TParticle* particle = fTracks.front();
+  TTrack* track = fTracks.front();
   fTracks.pop();
 
-  if (!particle) {
+  if (!track) {
     return nullptr;
   }
-  return particle;
+  return track;
 }

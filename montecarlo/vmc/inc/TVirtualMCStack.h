@@ -21,7 +21,7 @@
 #include "TObject.h"
 #include "TMCProcess.h"
 
-class TParticle;
+class TTrack;
 
 class TVirtualMCStack : public TObject {
 
@@ -56,18 +56,16 @@ public:
                            TMCProcess mech, Int_t& ntr, Double_t weight,
                            Int_t is) = 0;
 
-   virtual void PushTrack(Int_t toBeDone, Int_t parent, TParticle* particle,
-                                Double_t tof, TMCProcess mech, Int_t& ntr, Int_t is);
 
    /// The stack has to provide two pop mechanisms:
    /// The first pop mechanism required.
    /// Pop all particles with toBeDone = 1, both primaries and seconadies
-   virtual TParticle* PopNextTrack(Int_t& itrack) = 0;
+   virtual TTrack* PopNextTrack(Int_t& itrack) = 0;
 
    /// The second pop mechanism required.
    /// Pop only primary particles with toBeDone = 1, stacking of secondaries
    /// is done by MC
-   virtual TParticle* PopPrimaryForTracking(Int_t i) = 0;
+   virtual TTrack* PopPrimaryForTracking(Int_t i) = 0;
 
    //
    // Set methods
@@ -90,7 +88,7 @@ public:
    virtual Int_t      GetNprimary()  const = 0;
 
    /// Current track particle
-   virtual TParticle* GetCurrentTrack() const= 0;
+   virtual TTrack* GetCurrentTrack() const= 0;
 
    /// Current track number
    virtual Int_t      GetCurrentTrackNumber() const = 0;
