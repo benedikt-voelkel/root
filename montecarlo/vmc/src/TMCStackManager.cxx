@@ -107,14 +107,18 @@ void TMCStackManager::PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
 
 void TMCStackManager::PushToQueue(TTrack* track)
 {
-  std::cout << track->Id() << std::endl;
+  //Info("PushToQueue", "Push track %i to queue.", track->Id());
   TVirtualMC* mc = nullptr;
-  if(!fMCStateManager->GetConcurrentMode()) {
+  // \todo Only rely on concurrent flag here?
+  if(!fMCStateManager->GetConcurrentMode() || fMCEngines.size() == 1) {
     fMCEngines.front()->GetQueue()->PushTrack(track);
     return;
   }
   // Call function defined by the user to decide where to push a track to
   fSpecifyEngineForTrack(track, mc);
+  if(!mc) {
+    Fatal("PushToQueue", "No engine specified");
+  }
   mc->GetQueue()->PushTrack(track);
 }
 
@@ -164,7 +168,7 @@ void TMCStackManager::InitializeQueuesWithPrimaries(Bool_t isNewEvent)
   if(fMasterStack->GetNtrack() < 1) {
     Fatal("InitializeQueuesWithPrimaries", "No primaries found on user VMC stack");
   }
-  Info("InitializeQueuesWithPrimaries","Push primaries to queues");
+  //Info("InitializeQueuesWithPrimaries","Push primaries to queues");
   Int_t trackNumber;
   TTrack* track = nullptr;
   // If that point is reached, concurrent mode is enabled and the decision of
@@ -223,15 +227,11 @@ void TMCStackManager::SetCurrentTrack(Int_t trackID)
 void TMCStackManager::SuggestTrackForMoving(TVirtualMC* currentMC)
 {
   TVirtualMC* targetEngine = nullptr;
-  if(fSuggestTrackForMoving(currentMC, targetEngine)) {
-    // \note Check for debugging
-    if(!targetEngine) {
-      Fatal("SuggestTrackForMoving", "No target engine specified");
-    }
-    if(currentMC != targetEngine) {
-      Info("SuggestTrackForMoving","Track moved to engine %s", targetEngine->GetName());
-      MoveTrack(currentMC, targetEngine->GetQueue());
-    }
+  fSuggestTrackForMoving(currentMC, targetEngine);
+  //if(targetEngine && currentMC != targetEngine) {
+  if(targetEngine) {
+    //Info("SuggestTrackForMoving","Track moved to engine %s", targetEngine->GetName());
+    MoveTrack(currentMC, targetEngine->GetQueue());
   }
 }
 
@@ -250,22 +250,27 @@ void TMCStackManager::MoveTrack(TVirtualMC* currentMC, TMCQueue* targetQueue)
   currentMC->TrackPosition(position);
   currentMC->TrackMomentum(momentum);
   TTrack* currentTrack = fMasterStack->GetCurrentTrack();
-  Info("MoveTrack", "Track %i will be moved from %s", fMasterStack->GetCurrentTrackNumber(), currentMC->GetName());
+  //currentTrack->UpdatePosition(position);
+  //currentTrack->UpdateMomentum(momentum);
   // This is a pseudo track pointer, deletion will be taken care of by the TMCStackManager
   // The navigation status is pushed internally in the navigator and the corresponding
   // index is saved in the track object
-  TTrack* pseudoTrack = new TTrack(currentTrack->Id(),
-                                   currentTrack->GetPdgCode(),
-                                   currentTrack->GetStatusCode(),
-                                   currentTrack->GetFirstMother(),
-                                   -1,
-                                   currentTrack->GetFirstDaughter(),
-                                   currentTrack->GetLastDaughter(),
-                                   momentum, position, gGeoManager->PushPoint());
+  TTrack* pseudoTrack = new TTrack(*currentTrack);
+  // Update momentum and position
+  pseudoTrack->SetMomentum(momentum);
+  pseudoTrack->SetProductionVertex(position);
+  // Has no ID yet since "=" operator does not set it implicitly
+  pseudoTrack->Id(currentTrack->Id());
+  // Push index of TGeoNavigator and set it for this track
+  Int_t geoStateIndex = gGeoManager->PushPoint();
+  pseudoTrack->GeoStateIndex(geoStateIndex);
   // Cache this pseudo track to keep track of it
   PushPseudoTrack(pseudoTrack);
   // ...and push it to the target queue
   targetQueue->PushTrack(pseudoTrack);
+
+  //Info("MoveTrack", "Track %i with geo state %i will be moved from %s", fMasterStack->GetCurrentTrackNumber(), geoStateIndex, currentMC->GetName());
+
   currentMC->StopTrack();
    // \todo So far only stacking track ids, but also be able to see from where to where in the end
    //fTrackIdsMoved.push_back(fMasterStack->GetCurrentTrackNumber());
@@ -276,7 +281,7 @@ void TMCStackManager::MoveTrack(TVirtualMC* currentMC, TMCQueue* targetQueue)
 /// Set the function called in stepping to check whether a track needs to be moved
 ///
 void TMCStackManager::RegisterSuggestTrackForMoving(
-                            std::function<Bool_t(TVirtualMC*, TVirtualMC*&)> f)
+                            std::function<void(TVirtualMC*, TVirtualMC*&)> f)
 {
   fSuggestTrackForMoving = f;
 }
@@ -286,7 +291,7 @@ void TMCStackManager::RegisterSuggestTrackForMoving(
 /// Set the function called in stepping to check whether a track needs to be moved
 ///
 void TMCStackManager::RegisterSpecifyEngineForTrack(
-                             std::function<Bool_t(TTrack*, TVirtualMC*&)> f)
+                             std::function<void(TTrack*, TVirtualMC*&)> f)
 {
   fSpecifyEngineForTrack = f;
 }

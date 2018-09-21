@@ -61,7 +61,7 @@ ClassImp(TParticle);
 ///default constructor
 
 TParticle::TParticle() :
-  fID(-1), fPdgCode(0), fStatusCode(0), fWeight(0),fCalcMass(0), fPx(0), fPy(0),
+  fPdgCode(0), fStatusCode(0), fWeight(0),fCalcMass(0), fPx(0), fPy(0),
   fPz(0), fE(0), fVx(0), fVy(0), fVz(0), fVt(0), fPolarTheta(0), fPolarPhi(0)
 {
    fMother[0]   = 0;
@@ -79,28 +79,7 @@ TParticle::TParticle(Int_t pdg,       Int_t status,
                      Int_t daughter1, Int_t daughter2,
                      Double_t px, Double_t py, Double_t pz, Double_t etot,
                      Double_t vx, Double_t vy, Double_t vz, Double_t time):
-  fID(-1), fPdgCode(pdg), fStatusCode(status), fWeight(1.),fPx(px), fPy(py),
-  fPz(pz), fE(etot), fVx(vx), fVy(vy), fVz(vz), fVt(time)
-{
-   fMother[0]   = mother1;
-   fMother[1]   = mother2;
-   fDaughter[0] = daughter1;
-   fDaughter[1] = daughter2;
-
-   SetPolarisation(0,0,0);
-
-   SetPdgCode(pdg);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-///constructor
-
-TParticle::TParticle(Int_t id, Int_t pdg,       Int_t status,
-                     Int_t mother1,   Int_t mother2,
-                     Int_t daughter1, Int_t daughter2,
-                     Double_t px, Double_t py, Double_t pz, Double_t etot,
-                     Double_t vx, Double_t vy, Double_t vz, Double_t time):
-  fID(id), fPdgCode(pdg), fStatusCode(status), fWeight(1.),fPx(px), fPy(py),
+  fPdgCode(pdg), fStatusCode(status), fWeight(1.),fPx(px), fPy(py),
   fPz(pz), fE(etot), fVx(vx), fVy(vy), fVz(vz), fVt(time)
 {
    fMother[0]   = mother1;
@@ -135,31 +114,10 @@ TParticle::TParticle(Int_t pdg,       Int_t status,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-///constructor
-
-TParticle::TParticle(Int_t id, Int_t pdg,       Int_t status,
-                     Int_t mother1,   Int_t mother2,
-                     Int_t daughter1, Int_t daughter2,
-                     const TLorentzVector &p,
-                     const TLorentzVector &v) :
-  fID(id), fPdgCode(pdg), fStatusCode(status), fWeight(1.),fPx(p.Px()), fPy(p.Py()),
-  fPz(p.Pz()), fE(p.E()), fVx(v.X()), fVy(v.Y()), fVz(v.Z()), fVt(v.T())
-{
-   fMother[0]   = mother1;
-   fMother[1]   = mother2;
-   fDaughter[0] = daughter1;
-   fDaughter[1] = daughter2;
-
-   SetPolarisation(0,0,0);
-
-   SetPdgCode(pdg);
-}
-
-////////////////////////////////////////////////////////////////////////////////
 /// copy constructor
 
 TParticle::TParticle(const TParticle &p) :
-  TObject(p), TAttLine(p), TAtt3D(p), fID(p.fID), fPdgCode(p.fPdgCode), fStatusCode(p.fStatusCode),
+  TObject(p), TAttLine(p), TAtt3D(p), fPdgCode(p.fPdgCode), fStatusCode(p.fStatusCode),
   fWeight(p.fWeight), fCalcMass(p.fCalcMass), fPx(p.fPx), fPy(p.fPy), fPz(p.fPz),
   fE(p.fE), fVx(p.fVx), fVy(p.fVy), fVz(p.fVz), fVt(p.fVt), fPolarTheta(p.fPolarTheta),
   fPolarPhi(p.fPolarPhi), fParticlePDG(p.fParticlePDG)
@@ -179,7 +137,6 @@ TParticle& TParticle::operator=(const TParticle &p)
       TObject::operator=(p);
       TAttLine::operator=(p);
       TAtt3D::operator=(p);
-      fID = p.fID;
       fPdgCode=p.fPdgCode;
       fStatusCode=p.fStatusCode;
       fMother[0]=p.fMother[0];

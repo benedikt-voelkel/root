@@ -17,8 +17,7 @@
 #define ROOT_TTrack
 
 #include "TParticle.h"
-
-class TGeoNavigator;
+#include <TObjArray.h>
 
 class TTrack : public TParticle {
 
@@ -32,22 +31,16 @@ public:
    /// Default constructor
    TTrack();
 
-   /// Constructors forwaring to other TParticle constructors
-
    TTrack(Int_t id, Int_t pdg, Int_t status,
-          Int_t mother1, Int_t mother2,
-          Int_t daughter1, Int_t daughter2,
+          TTrack* parent,
           Double_t px, Double_t py, Double_t pz, Double_t etot,
           Double_t vx, Double_t vy, Double_t vz, Double_t time,
           Int_t geoStateIndex);
 
    TTrack(Int_t id, Int_t pdg, Int_t status,
-          Int_t mother1, Int_t mother2,
-          Int_t daughter1, Int_t daughter2,
-          const TLorentzVector &p,
+          TTrack* parent, const TLorentzVector &p,
           const TLorentzVector &v,
           Int_t geoStateIndex);
-
 
    TTrack(const TTrack& track);
 
@@ -68,13 +61,26 @@ public:
    /// Get the state index
    Int_t GeoStateIndex() const;
 
+   /// Add a child to this track
+   void AddChild(TTrack* child);
+   /// Number of children
+   Int_t GetNChildren() const;
+   /// Get a child
+   const TTrack* GetChild(Int_t index) const;
+
+   /// Get the parent track
+   const TTrack* GetParent() const;
+
 
    private:
      /// Track id
      Int_t fId;
      /// Index of the state on the TGeoNavigator stack
      Int_t fGeoStateIndex;
-
+     /// Pointer to parent track
+     TTrack* fParent;
+     /// Child tracks
+     TObjArray* fChildren;
 
    ClassDef(TTrack,1)
 };

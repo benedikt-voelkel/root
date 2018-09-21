@@ -147,14 +147,17 @@ Bool_t TMCManager::GetNextEngine()
 {
   // If there are still tracks on the current stack do nothing
   if(fCurrentMCEngine->GetQueue()->GetNtrack() > 0) {
-    Info("GetNextEngine", "There are still %i particles in queue of %s", fCurrentMCEngine->GetQueue()->GetNtrack(), fCurrentMCEngine->GetName());
+    //Info("GetNextEngine", "There are still %i particles in queue of %s", fCurrentMCEngine->GetQueue()->GetNtrack(), fCurrentMCEngine->GetName());
     return kTRUE;
   }
   // \note Kind of brute force selection
   for(auto& mc : fMCEngines) {
     if(mc->GetQueue()->GetNtrack() > 0) {
       fCurrentMCEngine = mc;
-      Info("GetNextEngine", "There are %i particles in queue of %s", fCurrentMCEngine->GetQueue()->GetNtrack(), fCurrentMCEngine->GetName());
+      //Info("GetNextEngine", "There are %i particles in queue of %s", fCurrentMCEngine->GetQueue()->GetNtrack(), fCurrentMCEngine->GetName());
+      // \note experimental Update the address for all pointers the user has registered
+      // for accessing the current engine
+      UpdateConnectedEnginePointers();
       return kTRUE;
     }
   }
@@ -211,7 +214,7 @@ void TMCManager::RunMCs(Int_t nofEvents)
     Info("RunMCs", "Starting dry run.");
   } else {
     for(Int_t i = 0; i < nofEvents; i++) {
-      Info("RunMCs", "Start event %i", i);
+      //Info("RunMCs", "Start event %i", i);
       // Generate primaries according to the user to fill the stack which was
       // registered to the TMCStackManager before
       // \todo Rather use a global state manager to handle that
@@ -225,10 +228,7 @@ void TMCManager::RunMCs(Int_t nofEvents)
         continue;
       }
       while(GetNextEngine()) {
-        Info("RunMCs", "Running engine %s", fCurrentMCEngine->GetName());
-        // \note experimental Update the address for all pointers the user has registered
-        // for accessing the current engine
-        UpdateConnectedEnginePointers();
+        //Info("RunMCs", "Running engine %s", fCurrentMCEngine->GetName());
         fCurrentMCEngine->ProcessEvent(i);
       }
       fNEventsProcessed++;
@@ -236,17 +236,17 @@ void TMCManager::RunMCs(Int_t nofEvents)
   }
   TerminateRun();
   Print();
-  fMCStackManager->Print();
   //PostRun();
 }
 
 void TMCManager::Stepping()
 {
-  Info("Stepping", "Stepping for engine %s", fCurrentMCEngine->GetName());
+  //Info("Stepping", "Stepping for engine %s", fCurrentMCEngine->GetName());
   // Only for more than 1 engine \todo Use a flag for this
-  if(fMCEngines.size() > 1) {
+  // \note Changed for artifical TGeantN with same TGeantN
+  //if(fMCEngines.size() > 1) {
     fMCStackManager->SuggestTrackForMoving(fCurrentMCEngine);
-  }
+  //}
 }
 
 ////////////////////////////////////////////////////////////////////////////////

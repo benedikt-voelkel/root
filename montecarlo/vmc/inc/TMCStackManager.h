@@ -127,9 +127,9 @@ public:
    //
 
    /// Set the function called in stepping to check whether a track needs to be moved
-   void RegisterSuggestTrackForMoving(std::function<Bool_t(TVirtualMC*, TVirtualMC*&)> f);
+   void RegisterSuggestTrackForMoving(std::function<void(TVirtualMC*, TVirtualMC*&)> f);
    /// Set the function called to decide to qhich queue a primary is pushed
-   void RegisterSpecifyEngineForTrack(std::function<Bool_t(TTrack*, TVirtualMC*&)> f);
+   void RegisterSpecifyEngineForTrack(std::function<void(TTrack*, TVirtualMC*&)> f);
 
 
    /// Set a  new queue for an engine and register this engine
@@ -196,9 +196,9 @@ public:
     TMCStateManager*             fMCStateManager;              ///< Pointer to global state manager
     std::vector<TTrack*>         fPseudoTracks;                ///< Pseudo tracks cached e.g. when tracks are moved between engines
     /// Decide where to transfer a track to given user conditions
-    std::function<Bool_t(TVirtualMC*, TVirtualMC*&)> fSuggestTrackForMoving;
+    std::function<void(TVirtualMC*, TVirtualMC*&)> fSuggestTrackForMoving;
     /// Decide where to push a track to which has not been transported
-    std::function<Bool_t(TTrack*, TVirtualMC*&)>  fSpecifyEngineForTrack;
+    std::function<void(TTrack*, TVirtualMC*&)>  fSpecifyEngineForTrack;
 
    ClassDef(TMCStackManager,1) //Interface to a particles stack
 };
