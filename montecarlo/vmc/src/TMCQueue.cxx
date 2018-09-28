@@ -26,7 +26,6 @@ ClassImp(TMCQueue);
 /// Default constructor
 
 TMCQueue::TMCQueue()
-  : TObject()
 {}
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -52,7 +51,7 @@ Int_t TMCQueue::GetNtrack() const
 }
 
 //_____________________________________________________________________________
-TTrack* TMCQueue::PopNextTrack()
+const TTrack* TMCQueue::PopNextTrack()
 {
 /// Get next particle for tracking from the stack.
 /// \return        The popped particle object

@@ -53,6 +53,8 @@ TGeoNodeCache::TGeoNodeCache()
    fPWInfo      = 0;
    fNodeIdArray = 0;
    for (Int_t i=0; i<100; i++) fIdBranch[i] = 0;
+   // \note Push -1 as first entry
+   fPoppedStackIndices.push(-1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -93,6 +95,7 @@ TGeoNodeCache::TGeoNodeCache(TGeoNode *top, Bool_t nodeid, Int_t capacity)
    for (Int_t i=0; i<100; i++) fIdBranch[i] = 0;
    if (nodeid) BuildIdArray();
    CdTop();
+   fPoppedStackIndices.push(-1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -355,12 +358,24 @@ const char *TGeoNodeCache::GetPath()
 
 Int_t TGeoNodeCache::PushState(Bool_t ovlp, Int_t startlevel, Int_t nmany, Double_t *point)
 {
-   if (fStackLevel>=fGeoCacheStackSize) {
+  // \note add fPoppedStackIndices functionality
+  Int_t overwriteLevel = fPoppedStackIndices.top();
+  if(overwriteLevel != -1) {
+    // Remove this index since it's going to be used.
+    fPoppedStackIndices.pop();
+  }
+   else {
+     // Increase stack size for cached states
+     if (fStackLevel>=fGeoCacheStackSize) {
       for (Int_t ist=0; ist<fGeoCacheStackSize; ist++)
          fStack->Add(new TGeoCacheState(fGeoCacheMaxLevels));
+     }
+    overwriteLevel = fStackLevel;
+    fStackLevel++;
    }
-   ((TGeoCacheState*)fStack->At(fStackLevel))->SetState(fLevel,startlevel,nmany,ovlp,point);
-   return ++fStackLevel;
+
+   ((TGeoCacheState*)fStack->At(overwriteLevel))->SetState(fLevel,startlevel,nmany,ovlp,point);
+   return ++overwriteLevel;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -382,6 +397,7 @@ Bool_t TGeoNodeCache::PopState(Int_t &nmany, Int_t level, Double_t *point)
 {
    if (level<=0) return 0;
    Bool_t ovlp = ((TGeoCacheState*)fStack->At(level-1))->GetState(fLevel,nmany,point);
+   fPoppedStackIndices.push(level-1);
    Refresh();
    return ovlp;
 }

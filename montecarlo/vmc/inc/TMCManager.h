@@ -73,6 +73,10 @@ public:
 
    /// Check whther primaries must be pushed to the VMC stack
    Bool_t NeedPrimaries() const;
+   /// Check whether an event was finished
+   /// \note \todo This is so far a helper flag which will be moved to
+   /// TMCStateManager
+   Bool_t EventFinished() const;
 
    //
    // Verbosity
@@ -96,6 +100,10 @@ private:
   Bool_t fIsConcurrentMode;
   /// Flag to tell whether primaries should be pushed to the VMC stack
   Bool_t fNeedPrimaries;
+  /// Check whether an event was finished
+  /// \note \todo This is so far a helper flag which will be moved to
+  /// TMCStateManager
+  Bool_t fEventFinished;
   /// The running TVirtualMCApplication
   TVirtualMCApplication* fMCApplication;
   /// Wrapping engine, stack and criteria

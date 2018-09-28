@@ -19,11 +19,14 @@
 //
 
 #include <functional>
+#include <map>
 
 #include "TObject.h"
 
 #include "TMCtls.h"
 #include "TMCProcess.h"
+#include "TLorentzVector.h"
+#include "TGeoNavigator.h"
 
 class TTrack;
 class TMCQueue;
@@ -31,6 +34,7 @@ class TVirtualMCStack;
 class TVirtualMC;
 class TVirtualMCApplication;
 class TMCStateManager;
+class TGeoCacheManual;
 
 
 /// Specify the mode of stack export, either per event or per run
@@ -111,7 +115,7 @@ public:
    Int_t      GetNprimary()  const;
 
    /// Current track particle
-   TTrack* GetCurrentTrack() const { return fCurrentTrack; }
+   TTrack* GetCurrentTrack() const;
 
    /// Current track number
    Int_t      GetCurrentTrackNumber() const;
@@ -149,6 +153,9 @@ public:
 
    /// Notify the TMCStackManager that an event has finished.
    void NotifyOnFinishedEvent();
+
+   /// Set the current navigator
+   void SetCurrentNavigator(TGeoNavigator* navigator);
 
    /// Export the stack to a ROOT file
    //void ExportStack();
@@ -195,12 +202,23 @@ public:
     Bool_t                       fLastTrackSuggestedForMoving; ///< Flag the current track since it might need to be moved in the next step
     TMCStateManager*             fMCStateManager;              ///< Pointer to global state manager
     std::vector<TTrack*>         fPseudoTracks;                ///< Pseudo tracks cached e.g. when tracks are moved between engines
+    TLorentzVector               fCurrentPosition;  ///< Cache for current position
+    TLorentzVector               fCurrentMomentum;  ///< Cache for current position
+    TGeoNavigator*               fCurrentNavigator; ///< Pointer to navigator used by current engine
+    TGeoCacheManual*            fGeoStateCache;    ///< Pointer to cache with geometry states
     /// Decide where to transfer a track to given user conditions
     std::function<void(TVirtualMC*, TVirtualMC*&)> fSuggestTrackForMoving;
     /// Decide where to push a track to which has not been transported
     std::function<void(TTrack*, TVirtualMC*&)>  fSpecifyEngineForTrack;
+    /// Mapping track id to pdgs
+    std::map<Int_t,Int_t> fTrackIdPDGMap;
 
    ClassDef(TMCStackManager,1) //Interface to a particles stack
 };
+
+inline void TMCStackManager::SetCurrentNavigator(TGeoNavigator* navigator)
+{
+  fCurrentNavigator = navigator;
+}
 
 #endif //ROOT_TMCStackManager

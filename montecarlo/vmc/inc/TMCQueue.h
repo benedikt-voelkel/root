@@ -25,7 +25,7 @@
 
 class TTrack;
 
-class TMCQueue : public TObject {
+class TMCQueue {
 
 public:
    // Constructor
@@ -42,7 +42,7 @@ public:
    void PushTrack(TTrack* track);
 
    /// Only pop tracks, since that's a queue all tracks are supposed to be processed
-   TTrack* PopNextTrack();
+   const TTrack* PopNextTrack();
 
    //
    // Get methods

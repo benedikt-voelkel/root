@@ -38,6 +38,7 @@ class TLorentzVector;
 class TGeoHMatrix;
 class TArrayI;
 class TArrayD;
+class TGeoBranchArray;
 
 class TVirtualMC : public TNamed {
 
@@ -617,6 +618,7 @@ public:
    // ------------------------------------------------
    //
 
+
    /// Return the current volume ID and copy number
    virtual Int_t    CurrentVolID(Int_t& copyNo) const =0;
 
@@ -687,6 +689,8 @@ public:
    // dynamic properties
    // ------------------------------------------------
    //
+   /// Update VMC track position based on current position
+   //virtual void UpdateTrackPosition(TTrack* track);
 
    /// Return the current position in the master reference frame of the
    /// track being transported

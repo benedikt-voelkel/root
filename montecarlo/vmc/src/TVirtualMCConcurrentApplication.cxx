@@ -101,7 +101,7 @@ void TVirtualMCConcurrentApplication::PreTrack()
 void TVirtualMCConcurrentApplication::Stepping()
 {
   // Call the user stepping actions
-  //Info("Stepping", "Do custom user stepping");
+  // /Info("Stepping", "Do custom user stepping");
   SteppingConcurrent();
   // After that the Stepping of the TMCManager must be called e.g. to check whether
   // stacks must be updated
@@ -139,5 +139,9 @@ void TVirtualMCConcurrentApplication::FinishPrimary()
 void TVirtualMCConcurrentApplication::FinishEvent()
 {
   // Check conditions and then call the BeginEventConcurrent()
-  FinishEventConcurrent();
+  if(fMCManager->EventFinished()) {
+    //Info("FinishEvent", "Finish event");
+    FinishEventConcurrent();
+  }
+
 }

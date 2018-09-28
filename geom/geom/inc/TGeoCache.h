@@ -13,6 +13,10 @@
 #ifndef ROOT_TGeoCache
 #define ROOT_TGeoCache
 
+// \note Very experimental: stack used to store free indices to manage the fStack when points
+// are pushed and popped by index
+#include <stack>
+
 #include "TGeoNode.h"
 
 #include "TGeoStateInfo.h"
@@ -73,6 +77,9 @@ private:
    TGeoStateInfo       **fInfoBranch;       // current branch of nodes
    TGeoStateInfo        *fPWInfo;           //! State info for the parallel world
    Int_t                *fNodeIdArray;      //! array of node id's
+   // \note Very experimental: Stack used to store free indices to manage the fStack when points
+   // are pushed and popped by index
+   std::stack<Int_t>    fPoppedStackIndices;// These indices are free
 
    TGeoNodeCache(const TGeoNodeCache&); // Not implemented
    TGeoNodeCache& operator=(const TGeoNodeCache&); // Not implemented

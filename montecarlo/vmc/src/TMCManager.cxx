@@ -53,6 +53,7 @@ TMCManager::TMCManager()
    // Set true byb default. If in concurrent mode, the TMCManager will take care
    // that primaries are only generated once per event using this flag.
    fNeedPrimaries = kTRUE;
+   fEventFinished = kFALSE;
 
    fgInstance = this;
 }
@@ -154,6 +155,9 @@ Bool_t TMCManager::GetNextEngine()
   for(auto& mc : fMCEngines) {
     if(mc->GetQueue()->GetNtrack() > 0) {
       fCurrentMCEngine = mc;
+      // Set the current navigator for this engine.
+      // \todo The following works since right now there is only one navigator.
+      fMCStackManager->SetCurrentNavigator(gGeoManager->GetCurrentNavigator());
       //Info("GetNextEngine", "There are %i particles in queue of %s", fCurrentMCEngine->GetQueue()->GetNtrack(), fCurrentMCEngine->GetName());
       // \note experimental Update the address for all pointers the user has registered
       // for accessing the current engine
@@ -165,9 +169,16 @@ Bool_t TMCManager::GetNextEngine()
   return kFALSE;
 }
 
+//__________________________________________________________________________
 Bool_t TMCManager::NeedPrimaries() const
 {
   return fNeedPrimaries;
+}
+
+//__________________________________________________________________________
+Bool_t TMCManager::EventFinished() const
+{
+  return fEventFinished;
 }
 
 //__________________________________________________________________________
@@ -199,7 +210,8 @@ void TMCManager::RunMCs(Int_t nofEvents)
 {
   /// Run MC.
   /// \param nofEvents Number of events to be processed
-
+  // Set initial navigator \todo Move this to a more consistent place.
+  fMCStackManager->SetCurrentNavigator(gGeoManager->GetCurrentNavigator());
   // Only available in concurrent mode, abort if not the case
   if(!fMCStateManager->GetConcurrentMode()) {
     Fatal("RunMCs", "Not in concurrent mode");
@@ -214,6 +226,7 @@ void TMCManager::RunMCs(Int_t nofEvents)
     Info("RunMCs", "Starting dry run.");
   } else {
     for(Int_t i = 0; i < nofEvents; i++) {
+      fEventFinished = kFALSE;
       //Info("RunMCs", "Start event %i", i);
       // Generate primaries according to the user to fill the stack which was
       // registered to the TMCStackManager before
@@ -231,6 +244,10 @@ void TMCManager::RunMCs(Int_t nofEvents)
         //Info("RunMCs", "Running engine %s", fCurrentMCEngine->GetName());
         fCurrentMCEngine->ProcessEvent(i);
       }
+      fEventFinished = kTRUE;
+      fMCApplication->FinishEvent();
+      // Important to set flag to false so that the call from the engines to TVirtualMCApplication::GimmePrimaries will be ignored
+
       fNEventsProcessed++;
     }
   }

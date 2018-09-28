@@ -71,6 +71,15 @@ public:
    /// Get the parent track
    const TTrack* GetParent() const;
 
+   /// Add a new point (spatial and momentum) to this track which is then the
+   /// current point
+   void AddPointMomentum(Double_t t, Double_t x, Double_t y, Double_t z,
+                         Double_t e, Double_t px, Double_t py, Double_t pz);
+   void AddPointMomentum(const TLorentzVector& v, const TLorentzVector& p);
+
+   /// Clear all points and momenta
+   void ClearPointsMomenta();
+
 
    private:
      /// Track id
@@ -81,6 +90,15 @@ public:
      TTrack* fParent;
      /// Child tracks
      TObjArray* fChildren;
+     /// Points this track has passed, contains position (4 parameters) and
+     /// momenta (following 4 parameters)
+     Double_t* fPoints;
+     /// Number of points
+     Int_t fNpoints;
+     /// Maximum nnumber of points that can currently be stored
+     Int_t fNmaxPoints;
+     /// Number of parameters of a point, 4 (position), 4 (moomenta)
+     static constexpr Int_t fNparameters = 8;
 
    ClassDef(TTrack,1)
 };
