@@ -77,6 +77,7 @@ void TGeoCacheManual::ClearCache()
 
 TGeoBranchArray* TGeoCacheManual::GetNewGeoState()
 {
+  //Info("GetNewGeoState", "Cache size: %i", fCacheSize);
   // Check for free index
   if(!fFreeIndices.empty()) {
     fCurrentIndex = fFreeIndices.back();
@@ -84,6 +85,7 @@ TGeoBranchArray* TGeoCacheManual::GetNewGeoState()
     fFreeIndices.pop_back();
     // Lock this index
     fIsIndexFree[fCurrentIndex] = kFALSE;
+    //Info("GetNewGeoState", "New GeoStateIndex (old): %i", fCurrentIndex);
     return fCache[fCurrentIndex];
   }
   // Do controlled resize and already instantiate new TGeoBranchArrays
@@ -104,6 +106,7 @@ TGeoBranchArray* TGeoCacheManual::GetNewGeoState()
   fCurrentIndex = fNextIndex++;
   // Lock this index.
   fIsIndexFree[fCurrentIndex] = kFALSE;
+  //Info("GetNewGeoState", "New GeoStateIndex: %i", fCurrentIndex);
   return fCache[fCurrentIndex];
 }
 

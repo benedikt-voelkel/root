@@ -20,7 +20,6 @@
 #include "TVirtualMC.h"
 #include "TTrack.h"
 #include "TGeoCacheManual.h"
-#include "TGeoBranchArray.h"
 #include "TVector3.h"
 #include "TError.h"
 #include "TGeoManager.h"
@@ -55,10 +54,11 @@ TMCStackManager::TMCStackManager()
    fCurrentTrackID = -1;
    fLastTrackSuggestedForMoving = kFALSE;
    fMCStateManager = TMCStateManager::Instance();
-   fPseudoTracks.clear();
    fCurrentPosition = TLorentzVector();
    fCurrentMomentum = TLorentzVector();
    fCurrentNavigator = nullptr;
+   fTargetMCCached = nullptr;
+   fGeoStateCached = nullptr;
    fGeoStateCache = TGeoCacheManual::Instance();
    fGeoStateCache->Initialize();
    fgInstance = this;
@@ -69,8 +69,7 @@ TMCStackManager::TMCStackManager()
 
 TMCStackManager::~TMCStackManager()
 {
-  // Clear the stack which is used for all intermediate tracks
-  ClearPseudoStack();
+  // Nothing to do at the moment
 }
 
 void TMCStackManager::PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
@@ -130,32 +129,10 @@ void TMCStackManager::PushToQueue(TTrack* track)
   mc->GetQueue()->PushTrack(track);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-///
-/// Push an internal TTrack used internally when engines are switched
-///
-
-void TMCStackManager::PushPseudoTrack(TTrack* pseudoTrack)
-{
-  fPseudoTracks.push_back(pseudoTrack);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-///
-/// Remove all pseudo tracks used to keep track of moved tracks
-///
-
-void TMCStackManager::ClearPseudoStack()
-{
-  for(auto& track : fPseudoTracks) {
-    delete track;
-  }
-  fPseudoTracks.clear();
-}
 
 void TMCStackManager::NotifyOnFinishedEvent()
 {
-  ClearPseudoStack();
+  // Nothing to do at the moment
   //if(fStackExportMode == EStackExportMode::kPerEvent) {
     //Info("NotifyOnFinishedEvent","Export stack to ROOT file");
     //ExportStack();
@@ -225,11 +202,18 @@ void TMCStackManager::SetCurrentTrack(Int_t trackID)
 {
   fCurrentTrackID = trackID;
   fMasterStack->SetCurrentTrack(trackID);
+  fCurrentTrack = fMasterStack->GetCurrentTrack();
 }
 
 TTrack* TMCStackManager::GetCurrentTrack() const
 {
-  return fMasterStack->GetCurrentTrack();
+  if(fCurrentTrack) {
+    return fCurrentTrack;
+  }
+  Fatal("GetCurrentTrack", "There is no current track set");
+  // \note Fatal will abort but without return statement we will most certainly
+  // get a compiler warning...
+  return fCurrentTrack;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -239,12 +223,18 @@ TTrack* TMCStackManager::GetCurrentTrack() const
 
 void TMCStackManager::SuggestTrackForMoving(TVirtualMC* currentMC)
 {
-  TVirtualMC* targetEngine = nullptr;
-  fSuggestTrackForMoving(currentMC, targetEngine);
+  //-----------------------------------------------------------
+  //-----------------------------------------------------------
+  fTargetMCCached = nullptr;
+  //fTargetMCCached = currentMC;
+  //-----------------------------------------------------------
+  //-----------------------------------------------------------
+  //fTargetMCCached = currentMC;
+  fSuggestTrackForMoving(currentMC, fTargetMCCached);
   //if(targetEngine && currentMC != targetEngine) {
-  if(targetEngine) {
+  if(fTargetMCCached) {
     //Info("SuggestTrackForMoving","Track moved to engine %s", targetEngine->GetName());
-    MoveTrack(currentMC, targetEngine->GetQueue());
+    MoveTrack(currentMC, fTargetMCCached->GetQueue());
   }
 }
 
@@ -260,22 +250,29 @@ void TMCStackManager::MoveTrack(TVirtualMC* currentMC, TMCQueue* targetQueue)
   // \not Time of flight is encoded using TVirtualMC::TrackPosition(TLorentzVector)
   currentMC->TrackPosition(fCurrentPosition);
   currentMC->TrackMomentum(fCurrentMomentum);
-  TTrack* currentTrack = fMasterStack->GetCurrentTrack();
+  // /fCurrentTrack = fMasterStack->GetCurrentTrack();
   // \todo Rather update which implies adding another point to this track internally
   // and keeping the old point as well to reconstruct where engine changes happened.
-  currentTrack->AddPointMomentum(fCurrentPosition, fCurrentMomentum);
+  fCurrentTrack->AddPointMomentum(fCurrentPosition, fCurrentMomentum);
+  //currentTrack->SetProductionVertex(fCurrentPosition);
+  //currentTrack->SetMomentum(fCurrentMomentum);
+
 
   // Push index of TGeoNavigator and set it for this track
-  TGeoBranchArray* geoState = fGeoStateCache->GetNewGeoState();
-  geoState->InitFromNavigator(fCurrentNavigator);
-  currentTrack->GeoStateIndex(geoState->GetUniqueID());
+  //-----------------------------------------------------------
+  //-----------------------------------------------------------
+  fGeoStateCached = fGeoStateCache->GetNewGeoState();
+  fGeoStateCached->InitFromNavigator(fCurrentNavigator);
+  fCurrentTrack->GeoStateIndex(fGeoStateCached->GetUniqueID());
+  //-----------------------------------------------------------
+  //-----------------------------------------------------------
 
-  Int_t trackIdManager = fMasterStack->GetCurrentTrackNumber();
+  //Int_t trackIdManager = fMasterStack->GetCurrentTrackNumber();
   //if(trackIdManager != currentTrack->Id()) {
     //Warning("MoveTrack", "track id in stack manager: %i and track id of track: %i", trackIdManager, currentTrack->Id() );
   //}
-  Int_t pdgEngine = currentMC->TrackPid();
-  Int_t pdgTrack = currentTrack->GetPdgCode();
+  //Int_t pdgEngine = currentMC->TrackPid();
+  //Int_t pdgTrack = currentTrack->GetPdgCode();
   //if( pdgEngine != pdgTrack) {
     //Warning("MoveTrack", "pdg from engine: %i and padg from track: %i", pdgEngine, pdgTrack );
   //}
@@ -287,11 +284,13 @@ void TMCStackManager::MoveTrack(TVirtualMC* currentMC, TMCQueue* targetQueue)
     fTrackIdPDGMap[currentTrack->Id()] = pdgEngine;
   }*/
   //if()
-  targetQueue->PushTrack(currentTrack);
-
-  //Info("MoveTrack", "Track %i with geo state %i will be moved from %s", currentTrack->Id(), geoState->GetUniqueID(), currentMC->GetName());
-
+  //-----------------------------------------------------------
+  //-----------------------------------------------------------
+  targetQueue->PushTrack(fCurrentTrack);
   currentMC->StopTrack();
+  //-----------------------------------------------------------
+  //-----------------------------------------------------------
+  // /Info("MoveTrack", "Track %i with geo state %i will be moved from %s", fCurrentTrack->Id(), geoState->GetUniqueID(), currentMC->GetName());
    // \todo So far only stacking track ids, but also be able to see from where to where in the end
 }
 
@@ -368,6 +367,17 @@ Bool_t TMCStackManager::HasPrimaries()
     return kFALSE;
   }
   return kTRUE;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Clear stack
+///
+void TMCStackManager::ResetStack()
+{
+  if(fMasterStack) {
+    fMasterStack->ResetStack();
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

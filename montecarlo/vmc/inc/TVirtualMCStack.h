@@ -36,6 +36,9 @@ public:
    // Methods for stacking
    //
 
+   /// Clear and reset the stack
+   virtual void ResetStack() = 0;
+
    /// Create a new particle and push into stack;
    /// - toBeDone   - 1 if particles should go to tracking, 0 otherwise
    /// - parent     - number of the parent track, -1 if track is primary

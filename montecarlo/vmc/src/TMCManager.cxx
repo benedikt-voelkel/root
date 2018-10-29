@@ -138,7 +138,7 @@ TVirtualMC* TMCManager::GetMC()
 void TMCManager::ConnectToCurrentMC(TVirtualMC*& mc)
 {
   fOutsideMCPointerAddresses.push_back(&mc);
-  // IF there is already an engine registered, already set it
+  // If there is already an engine registered, already set it
   if(fCurrentMCEngine) {
     mc = fCurrentMCEngine;
   }
@@ -146,12 +146,11 @@ void TMCManager::ConnectToCurrentMC(TVirtualMC*& mc)
 
 Bool_t TMCManager::GetNextEngine()
 {
-  // If there are still tracks on the current stack do nothing
+  // Do nothing if there are still tracks for current engine.
   if(fCurrentMCEngine->GetQueue()->GetNtrack() > 0) {
-    //Info("GetNextEngine", "There are still %i particles in queue of %s", fCurrentMCEngine->GetQueue()->GetNtrack(), fCurrentMCEngine->GetName());
     return kTRUE;
   }
-  // \note Kind of brute force selection
+  // \note Kind of brute force selection by bjust checking the queue
   for(auto& mc : fMCEngines) {
     if(mc->GetQueue()->GetNtrack() > 0) {
       fCurrentMCEngine = mc;
@@ -165,7 +164,7 @@ Bool_t TMCManager::GetNextEngine()
       return kTRUE;
     }
   }
-  // All stacks have no tracks to be processed
+  // No track to be processed.
   return kFALSE;
 }
 
@@ -184,24 +183,28 @@ Bool_t TMCManager::EventFinished() const
 //__________________________________________________________________________
 void TMCManager::InitMCs()
 {
-  // Only available in concurrent mode, abort if not the case
-  if(!fMCStateManager->GetConcurrentMode()) {
-    Fatal("InitMCs", "Not in concurrent mode");
-  }
+
   // Some user pre init steps
   // At this point the TGeoManager must be there with closed geometry
   if(!gGeoManager || !gGeoManager->IsClosed()) {
     Fatal("InitMCs","Could not find TGeoManager or geometry is still not closed");
   }
 
-  // Initialize engines
-  for(auto& mc : fMCEngines) {
-    Info("InitMCs", "Initialize engine %s", mc->GetName());
-    // Notify to use geometry built using TGeo
-    mc->SetRootGeometry();
-    // Further init steps for the MCs
-    mc->Init();
-    mc->BuildPhysics();
+  // Only available in concurrent mode, abort if not the case
+  if(!fMCStateManager->GetConcurrentMode()) {
+    fCurrentMCEngine->SetRootGeometry();
+    fCurrentMCEngine->Init();
+    fCurrentMCEngine->BuildPhysics();
+  } else {
+    // Initialize engines
+    for(auto& mc : fMCEngines) {
+      Info("InitMCs", "Initialize engine %s", mc->GetName());
+      // Notify to use geometry built using TGeo
+      mc->SetRootGeometry();
+      // Further init steps for the MCs
+      mc->Init();
+      mc->BuildPhysics();
+    }
   }
 }
 
@@ -210,21 +213,20 @@ void TMCManager::RunMCs(Int_t nofEvents)
 {
   /// Run MC.
   /// \param nofEvents Number of events to be processed
+
   // Set initial navigator \todo Move this to a more consistent place.
   fMCStackManager->SetCurrentNavigator(gGeoManager->GetCurrentNavigator());
-  // Only available in concurrent mode, abort if not the case
-  if(!fMCStateManager->GetConcurrentMode()) {
-    Fatal("RunMCs", "Not in concurrent mode");
-  }
-  // Some user code
-  //PreRun();
-  // First see list of TGeoNavigator objects registered to TGeoManager
-  Info("RunMCs", "There are %i navigators registered to TGeoManager", gGeoManager->GetListOfNavigators()->GetEntries());
-  // Run 1 event nofEvents times to cover TGeant3 and TGeant4 per event
+  // Check dryrun, so far nothing is done.
   if(nofEvents < 1) {
-    //fDryRun = kTRUE;
     Info("RunMCs", "Starting dry run.");
+    return;
+  }
+  // Check single against multi run mode
+  if(!fMCStateManager->GetConcurrentMode()) {
+    fCurrentMCEngine->ProcessRun(nofEvents);
   } else {
+    //Info("RunMCs", "There are %i navigators registered to TGeoManager", gGeoManager->GetListOfNavigators()->GetEntries());
+    // Run 1 event nofEvents times
     for(Int_t i = 0; i < nofEvents; i++) {
       fEventFinished = kFALSE;
       //Info("RunMCs", "Start event %i", i);
@@ -246,14 +248,11 @@ void TMCManager::RunMCs(Int_t nofEvents)
       }
       fEventFinished = kTRUE;
       fMCApplication->FinishEvent();
-      // Important to set flag to false so that the call from the engines to TVirtualMCApplication::GimmePrimaries will be ignored
-
       fNEventsProcessed++;
     }
+    TerminateRun();
+    Print();
   }
-  TerminateRun();
-  Print();
-  //PostRun();
 }
 
 void TMCManager::Stepping()

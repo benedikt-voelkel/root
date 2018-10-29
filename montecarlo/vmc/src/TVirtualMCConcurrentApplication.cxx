@@ -90,7 +90,6 @@ void TVirtualMCConcurrentApplication::BeginPrimary()
 void TVirtualMCConcurrentApplication::PreTrack()
 {
   // Check conditions and then call the BeginEventConcurrent()
-  PreTrackConcurrent();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

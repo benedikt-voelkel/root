@@ -27,8 +27,10 @@
 #include "TMCProcess.h"
 #include "TLorentzVector.h"
 #include "TGeoNavigator.h"
+#include "TGeoBranchArray.h"
 
 class TTrack;
+class ETransportStatus;
 class TMCQueue;
 class TVirtualMCStack;
 class TVirtualMC;
@@ -147,12 +149,16 @@ public:
    /// Check whether there are primaries on the global TVirtualMCStack
    Bool_t HasPrimaries();
 
+   /// Clear the VMC srack
+   void ResetStack();
+
    /// Forward primaries from global VMC stack to engine queues. By default it
    /// is suggested that this means a new event is started.
    void InitializeQueuesWithPrimaries(Bool_t isNewEvent = kTRUE);
 
-   /// Notify the TMCStackManager that an event has finished.
+   /// Notify the TMCStackManager that an event has been finished.
    void NotifyOnFinishedEvent();
+
 
    /// Set the current navigator
    void SetCurrentNavigator(TGeoNavigator* navigator);
@@ -179,10 +185,6 @@ public:
    void BufferSelectionParameters(TVirtualMC* currentMC);
    /// Move a track handled byb an engine to a new target queue
    void MoveTrack(TVirtualMC* currentMC, TMCQueue* targetQueue);
-   /// Push a track to pseudo stack
-   void PushPseudoTrack(TTrack* pseudoTrack);
-   /// Clear the psuedo stack
-   void ClearPseudoStack();
 
   private:
    // static data members
@@ -201,17 +203,19 @@ public:
     Int_t                        fCurrentVolCopyNo; ///< Buffer the copy number of the current volume
     Bool_t                       fLastTrackSuggestedForMoving; ///< Flag the current track since it might need to be moved in the next step
     TMCStateManager*             fMCStateManager;              ///< Pointer to global state manager
-    std::vector<TTrack*>         fPseudoTracks;                ///< Pseudo tracks cached e.g. when tracks are moved between engines
-    TLorentzVector               fCurrentPosition;  ///< Cache for current position
-    TLorentzVector               fCurrentMomentum;  ///< Cache for current position
     TGeoNavigator*               fCurrentNavigator; ///< Pointer to navigator used by current engine
-    TGeoCacheManual*            fGeoStateCache;    ///< Pointer to cache with geometry states
+    TGeoCacheManual*             fGeoStateCache;    ///< Pointer to cache with geometry states
     /// Decide where to transfer a track to given user conditions
     std::function<void(TVirtualMC*, TVirtualMC*&)> fSuggestTrackForMoving;
     /// Decide where to push a track to which has not been transported
     std::function<void(TTrack*, TVirtualMC*&)>  fSpecifyEngineForTrack;
     /// Mapping track id to pdgs
     std::map<Int_t,Int_t> fTrackIdPDGMap;
+    // Following are used for internal temorary caching
+    TLorentzVector               fCurrentPosition;  ///< Cache for current position
+    TLorentzVector               fCurrentMomentum;  ///< Cache for current position
+    TVirtualMC*                  fTargetMCCached; ///< Cache target engine when checking for moving track
+    TGeoBranchArray*             fGeoStateCached; ///< Cache geo state when moving track
 
    ClassDef(TMCStackManager,1) //Interface to a particles stack
 };
