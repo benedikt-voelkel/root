@@ -12,10 +12,9 @@
 
 #include <iostream>
 
-#include "TVirtualMC.h"
-#include "TVirtualMCApplication.h"
-#include "TMCManager.h"
 
+#include "TVirtualMCApplication.h"
+#include "TVirtualMC.h"
 
 /** \class TVirtualMC
     \ingroup vmc
@@ -53,7 +52,8 @@ TVirtualMC::TVirtualMC(const char *name, const char *title,
       if (!fApplication) {
          Error("TVirtualMC", "No user MC application is defined.");
       }
-      TMCManager::Instance()->RegisterMC(this);
+      // Register this VMC to the running TVirtualMCApplication.
+      fApplication->RegisterMC(this);
 
       fRandom = gRandom;
 }
@@ -79,9 +79,7 @@ TVirtualMC::TVirtualMC()
 ///
 
 TVirtualMC::~TVirtualMC()
-{
-  std::cout << "VMC is destrcuted" << std::endl;
-}
+{}
 
 //
 // methods
@@ -89,16 +87,16 @@ TVirtualMC::~TVirtualMC()
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
-/// Static access method
+/// Static access method. \note Deprecated, use TVirtualMCApplication::GetMC()
 ///
 
 TVirtualMC* TVirtualMC::GetMC() {
-   return TMCManager::GetMC();
+   return TVirtualMCApplication::GetMC();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
-/// Set particles stack.
+/// Set individual particles queue for this VMC.
 ///
 
 void TVirtualMC::SetQueue(TMCQueue* queue)

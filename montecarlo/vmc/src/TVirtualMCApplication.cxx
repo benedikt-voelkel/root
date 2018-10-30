@@ -11,10 +11,8 @@
  *************************************************************************/
 
 #include "TVirtualMCApplication.h"
-#include "TMCStateManager.h"
 #include "TMCStackManager.h"
-#include "TMCManager.h"
-#include "TError.h"
+#include "TVirtualMC.h"
 #include "TGeoManager.h"
 
 /** \class TVirtualMCApplication
@@ -27,6 +25,7 @@ Interface to a user Monte Carlo application.
 ClassImp(TVirtualMCApplication);
 
 TMCThreadLocal TVirtualMCApplication* TVirtualMCApplication::fgInstance = 0;
+TMCThreadLocal TVirtualMC* TVirtualMCApplication::fMC = 0;
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
@@ -42,9 +41,11 @@ TVirtualMCApplication::TVirtualMCApplication(const char *name,
             "Attempt to create two instances of singleton.");
    }
    fgInstance = this;
-   fMCManager = TMCManager::Instance();
+   // There cannot be a TVirtualMC since it must have registered to this
+   // TVirtualMCApplication
+   fMC = nullptr;
+   // Get the TMCStackManager
    fMCStackManager = TMCStackManager::Instance();
-   fMCStateManager = TMCStateManager::Instance();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -53,9 +54,10 @@ TVirtualMCApplication::TVirtualMCApplication(const char *name,
 ///
 
 TVirtualMCApplication::TVirtualMCApplication()
-  : TNamed()
+  : TNamed(), fMCStackManager(TMCStackManager::Instance())
 {
    fgInstance = this;
+   fMC = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -66,6 +68,36 @@ TVirtualMCApplication::TVirtualMCApplication()
 TVirtualMCApplication::~TVirtualMCApplication()
 {
    fgInstance = 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Static access method
+///
+
+TVirtualMCApplication* TVirtualMCApplication::Instance()
+{
+  return fgInstance;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Return pointer to the TMCStackManager
+///
+
+TMCStackManager* TVirtualMCApplication::GetStackManager() const
+{
+  return fMCStackManager;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// For backwards compatibility provide a static GetMC method.
+///
+
+TVirtualMC* TVirtualMCApplication::GetMC()
+{
+  return fMC;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -84,26 +116,4 @@ void TVirtualMCApplication::ConstructUserGeometry()
   }
   MisalignGeometry();
   ConstructOpGeometry();
-}
-
-void TVirtualMCApplication::GimmePrimaries()
-{
-  // Only push new primaries to the VMC stack if the TMCManager calls this method
-  // If called by an engine, nothing happens.
-  // Correct forwrding of primaries to the engines is done by the TMCManager together
-  // with the TMCStackManager
-  if(fMCManager->NeedPrimaries()) {
-    GeneratePrimaries();
-    fMCStackManager->InitializeQueuesWithPrimaries();
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-///
-/// Static access method
-///
-
-TVirtualMCApplication* TVirtualMCApplication::Instance()
-{
-  return fgInstance;
 }

@@ -1,5 +1,5 @@
 // @(#)root/vmc:$Id$
-// Authors: Ivana Hrivnacova 13/04/2002
+// Authors: Benedikt Volkel, 30/10/2018
 
 /*************************************************************************
  * Copyright (C) 2006, Rene Brun and Fons Rademakers.                    *
@@ -13,9 +13,10 @@
 #ifndef ROOT_TMCStackManager
 #define ROOT_TMCStackManager
 
-// Class TVirtualMCStack
+// Class TMCStackManager
 // ---------------------
-// Interface to a user defined particles stack.
+// Interface to a user defined particles stack as well as to TMCQueues of
+// different TVirtualMCs.
 //
 
 #include <functional>
@@ -30,36 +31,32 @@
 #include "TGeoBranchArray.h"
 
 class TTrack;
-class ETransportStatus;
 class TMCQueue;
 class TVirtualMCStack;
 class TVirtualMC;
-class TVirtualMCApplication;
-class TMCStateManager;
 class TGeoCacheManual;
 
 
-/// Specify the mode of stack export, either per event or per run
-/// In the latter case all tracks are dumped into one event. Note, that a TTrack
-/// itself does not know to which event it belongs so that information is lost
-/// in that case.
-//enum class EStackExportMode : Int_t {kPerEvent, kPerRun};
+/// The transport status of a track.
+enum class ETrackTransportStatus : Int_t {kNew, kProcessing, kFinished};
 
 
 class TMCStackManager {
 
 public:
 
-
    // Destructor
    ~TMCStackManager();
 
    /// Static access method
    static TMCStackManager* Instance();
+
    //
    // Methods for stacking
    //
 
+   /// Wrapper around TVirtualMCStack::PushTrack
+   ///
    /// Create a new particle and push into stack;
    /// - toBeDone   - 1 if particles should go to tracking, 0 otherwise
    /// - parent     - number of the parent track, -1 if track is primary
@@ -80,35 +77,10 @@ public:
                   Int_t geoStateIndex, TMCProcess mech, Int_t& ntr,
                   Double_t weight, Int_t is);
 
-    /// The outside world might suggest that the track handled by the engine
-    /// of the current engine needs to be moved
-    void SuggestTrackForMoving(TVirtualMC* currentMC);
-
-   /// The stack has to provide two pop mechanisms:
-   /// The first pop mechanism required.
-   /// Pop all particles with toBeDone = 1, both primaries and seconadies
-   //virtual TTrack* PopNextTrack(Int_t& itrack) = 0;
-
-   /// The second pop mechanism required.
-   /// Pop only primary particles with toBeDone = 1, stacking of secondaries
-   /// is done by MC
-   //virtual TTrack* PopPrimaryForTracking(Int_t i) = 0;
-
-   //
-   // Set methods
-   //
-
-
-   /// Get a notification from a queue or an engine about the tracks which is processed
-   //void               NotifyOnProcessedTrack(TTrack* track);
-   //void               NotifyOnProcessedTrack(Int_t trackID);
-
    //
    // Get methods
    //
-
-   /// Number of tracks still to be done
-   Int_t      GetNtrackToDo() const;
+   // Most of them wrapping get methods of TVirtualMCStack
 
    /// Total number of tracks
    Int_t      GetNtrack()    const;
@@ -116,7 +88,7 @@ public:
    /// Total number of primary tracks
    Int_t      GetNprimary()  const;
 
-   /// Current track particle
+   /// Current track
    TTrack* GetCurrentTrack() const;
 
    /// Current track number
@@ -125,65 +97,56 @@ public:
    /// Number of the parent of the current track
    Int_t      GetCurrentParentTrackNumber() const;
 
-   /// Set the current track id from the outside
-   void SetCurrentTrack(Int_t trackID);
+   /// Return the transport status of the current track
+   ETrackTransportStatus GetTrackTransportStatus() const;
 
    //
    // Set methods
    //
 
-   /// Set the function called in stepping to check whether a track needs to be moved
+   /// Set the current track id from the outside and forward this to the
+   /// user's TVirtualMCStack
+   void SetCurrentTrack(Int_t trackID);
+
+   /// Set the function called in stepping to check whether a track needs to
+   /// be moved
    void RegisterSuggestTrackForMoving(std::function<void(TVirtualMC*, TVirtualMC*&)> f);
-   /// Set the function called to decide to qhich queue a primary is pushed
+   /// Set the function called to decide to which queue a primary is pushed
    void RegisterSpecifyEngineForTrack(std::function<void(TTrack*, TVirtualMC*&)> f);
 
-
-   /// Set a  new queue for an engine and register this engine
-   /// Nobody but the TMCStackManager should ever need to manage a queue and engines
-   /// are inly allowed to pop from these
+   /// Assign a queue for a given engine
    void SetQueue(TVirtualMC* mc);
 
-   /// Register the master/global stack to the TMCStackManager
+   /// Register the user TVirtualMCStack
    void RegisterStack(TVirtualMCStack* stack);
-
-   /// Check whether there are primaries on the global TVirtualMCStack
-   Bool_t HasPrimaries();
-
-   /// Clear the VMC srack
-   void ResetStack();
-
-   /// Forward primaries from global VMC stack to engine queues. By default it
-   /// is suggested that this means a new event is started.
-   void InitializeQueuesWithPrimaries(Bool_t isNewEvent = kTRUE);
-
-   /// Notify the TMCStackManager that an event has been finished.
-   void NotifyOnFinishedEvent();
-
 
    /// Set the current navigator
    void SetCurrentNavigator(TGeoNavigator* navigator);
 
-   /// Export the stack to a ROOT file
-   //void ExportStack();
-   /// Import a stack from a ROOT file
-   //void ImportStack();
-   /// Set the ROOT file to which/from where a stack should be exported/imported
-   //void SetStackFileName(const char* stackFileName);
+   //
+   // Action methods
+   //
+
+   /// Check whether the user's criteria call for moving the track from the
+   /// current engine
+   void SuggestTrackForMoving(TVirtualMC* currentMC);
+
+   /// Clear the TVirtualMCStack
+   void ResetStack();
+
    //
    // Verbosity
    //
 
-   /// Print status of stacks/queues
+   /// Print status of stack and queues
    void Print() const;
- private:
 
-   /// Constructor prvate for save singleton behaviour
+ private:
+   /// Constructor private for save singleton behaviour
    TMCStackManager();
-   /// Push a new track to a queue of the stored TVirtualMC
+   /// Find the right queue to push this track to and push it
    void PushToQueue(TTrack* track);
-   /// Buffer current parameters the selection is based on
-   void BufferSelectionParameters(TVirtualMC* currentMC);
-   /// Move a track handled byb an engine to a new target queue
+   /// Move track from a given engine to a target queue of another engine
    void MoveTrack(TVirtualMC* currentMC, TMCQueue* targetQueue);
 
   private:
@@ -193,31 +156,35 @@ public:
   #else
      static                TMCStackManager* fgInstance; ///< Singleton instance
   #endif
-    TVirtualMCApplication*       fMCApplication;    ///< Pointer to global TVirtualMCApplication
-    TVirtualMCStack*             fMasterStack;      ///< The master stack with coherent history, this is what the outside world sees
-    TTrack*                      fCurrentTrack;     ///< Pointer to current track
-    Int_t                        fCurrentTrackID;   ///< Only the track id
-    std::vector<TVirtualMC*>     fMCEngines;        ///< Store MCs for stack/queue management
-    // Information for the seletion of engines when moving tracks (or attempt to)
-    Int_t                        fCurrentVolId;     ///< Buffer for the current volume id
-    Int_t                        fCurrentVolCopyNo; ///< Buffer the copy number of the current volume
-    Bool_t                       fLastTrackSuggestedForMoving; ///< Flag the current track since it might need to be moved in the next step
-    TMCStateManager*             fMCStateManager;              ///< Pointer to global state manager
-    TGeoNavigator*               fCurrentNavigator; ///< Pointer to navigator used by current engine
-    TGeoCacheManual*             fGeoStateCache;    ///< Pointer to cache with geometry states
+    /// The global stack managed by the TMCStackManager to ensure
+    /// a coherent history
+    TVirtualMCStack* fGlobalStack;
+    /// Pointer to current track
+    TTrack* fCurrentTrack;
+    /// Only the track id
+    Int_t fCurrentTrackID;
+    // Following are used for internal temorary caching of track information
+    /// Cache for current position
+    TLorentzVector fCurrentPosition;
+    /// Cache for current momentum
+    TLorentzVector fCurrentMomentum;
+    /// Cache target engine when checking for moving track
+    TVirtualMC* fTargetMCCached;
+    /// Cache geo state when moving track
+    TGeoBranchArray* fGeoStateCached;
+    /// Flag the transport status to decide e.g. whether a track has been
+    /// transported before.
+    std::vector<ETrackTransportStatus> fTrackTransportStatus;
+    /// Pointer to cache with geometry states
+    TGeoCacheManual* fGeoStateCache;
+    /// Pointer to navigator used by current engine
+    TGeoNavigator* fCurrentNavigator;
     /// Decide where to transfer a track to given user conditions
     std::function<void(TVirtualMC*, TVirtualMC*&)> fSuggestTrackForMoving;
     /// Decide where to push a track to which has not been transported
     std::function<void(TTrack*, TVirtualMC*&)>  fSpecifyEngineForTrack;
-    /// Mapping track id to pdgs
-    std::map<Int_t,Int_t> fTrackIdPDGMap;
-    // Following are used for internal temorary caching
-    TLorentzVector               fCurrentPosition;  ///< Cache for current position
-    TLorentzVector               fCurrentMomentum;  ///< Cache for current position
-    TVirtualMC*                  fTargetMCCached; ///< Cache target engine when checking for moving track
-    TGeoBranchArray*             fGeoStateCached; ///< Cache geo state when moving track
 
-   ClassDef(TMCStackManager,1) //Interface to a particles stack
+   ClassDefNV(TMCStackManager,1)
 };
 
 inline void TMCStackManager::SetCurrentNavigator(TGeoNavigator* navigator)
@@ -225,4 +192,4 @@ inline void TMCStackManager::SetCurrentNavigator(TGeoNavigator* navigator)
   fCurrentNavigator = navigator;
 }
 
-#endif //ROOT_TMCStackManager
+#endif // ROOT_TMCStackManager

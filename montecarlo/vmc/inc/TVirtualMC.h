@@ -38,7 +38,6 @@ class TLorentzVector;
 class TGeoHMatrix;
 class TArrayI;
 class TArrayD;
-class TGeoBranchArray;
 
 class TVirtualMC : public TNamed {
 
@@ -58,7 +57,7 @@ public:
    /// Destructor
    virtual ~TVirtualMC();
 
-   /// Static access method
+   /// Static access method. \note Deprecated, use TVirtualMCApplication::GetMC()
    static TVirtualMC* GetMC();
 
    //
@@ -845,7 +844,7 @@ public:
    // ------------------------------------------------
    //
 
-   /// Set the particle stack
+   /// Set individual particles queue for this VMC
    virtual void SetQueue(TMCQueue* queue);
 
    /// Set the external decayer
@@ -863,7 +862,7 @@ public:
     // ------------------------------------------------
     //
 
-    /// Return the particle stack
+    /// Return individual particles queue for this VMC
     TMCQueue*   GetQueue() const   { return fQueue; }
 
     /// Return the external decayer
@@ -882,7 +881,7 @@ private:
    TVirtualMC(const TVirtualMC &mc);
    TVirtualMC & operator=(const TVirtualMC &);
 
-   TMCQueue*           fQueue;   //!< Particles stack
+   TMCQueue*           fQueue;   //!< Individual particles queue for this VMC
    TVirtualMCDecayer*  fDecayer; //!< External decayer
    TRandom*            fRandom;  //!< Random number generator
    TVirtualMagField*   fMagField;//!< Magnetic field
@@ -906,6 +905,7 @@ inline void TVirtualMC::TrackMomentum(Float_t & /*px*/, Float_t & /*py*/, Float_
    Warning("TrackPosition(Float_t& ...)", "New function - not yet implemented.");
 }
 
+/// \note  Deprecated, use TVirtualMCApplication::GetMC() or store pointer.
 #define gMC (TVirtualMC::GetMC())
 
 #endif //ROOT_TVirtualMC

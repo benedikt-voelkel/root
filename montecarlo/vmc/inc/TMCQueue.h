@@ -1,5 +1,5 @@
 // @(#)root/vmc:$Id$
-// Authors: Ivana Hrivnacova 13/04/2002
+// Authors: Benedikt Volkel, 30/10/2018
 
 /*************************************************************************
  * Copyright (C) 2006, Rene Brun and Fons Rademakers.                    *
@@ -13,19 +13,21 @@
 #ifndef ROOT_TMCQueue
 #define ROOT_TMCQueue
 
-// Class TVirtualMCStack
+// Class TMCQueue
 // ---------------------
-// Interface to a user defined particles stack.
+// Queue a TVirtualMC pops its tracks from
 //
 
 #include <queue>
 
-#include "TObject.h"
-#include "TMCProcess.h"
+#include "Rtypes.h"
 
 class TTrack;
 
 class TMCQueue {
+
+/// TMCStackManager is friend so only this can push tracks.
+friend class TMCStackManager;
 
 public:
    // Constructor
@@ -34,27 +36,20 @@ public:
    // Destructor
    ~TMCQueue();
 
-   //
-   // Methods for stacking
-   //
-   /// Used to push tracks by the TMCStackManager only
-   // \todo Make it private and make TMCStackManager a friend class?
-   void PushTrack(TTrack* track);
+   /// Total number of tracks
+   Int_t GetNtrack() const;
 
-   /// Only pop tracks, since that's a queue all tracks are supposed to be processed
+   /// Pop next track to be processed
    const TTrack* PopNextTrack();
 
-   //
-   // Get methods
-   //
-
-   /// Total number of tracks
-   Int_t      GetNtrack()    const;
+ private:
+   /// Used to push tracks by the TMCStackManager only
+   void PushTrack(TTrack* track);
 
  private:
    std::queue<TTrack*> fTracks;
 
-   ClassDef(TMCQueue,1) //Interface to a particles stack
+   ClassDefNV(TMCQueue,1) //Interface to a particles stack
 };
 
-#endif //ROOT_TMCQueue
+#endif // ROOT_TMCQueue

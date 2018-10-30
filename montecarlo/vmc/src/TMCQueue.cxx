@@ -1,5 +1,5 @@
 // @(#)root/vmc:$Id$
-// Author: Ivana Hrivnacova, 27/03/2002
+// Author: Benedikt Volkel, 30/10/2018
 
 /*************************************************************************
  * Copyright (C) 2006, Rene Brun and Fons Rademakers.                    *
@@ -17,45 +17,59 @@
 /** \class TMCQueue
     \ingroup vmc
 
-Queue an engine can pop particles from for tracking.
+Queue a TVirtualMC pops its tracks from
 */
 
 ClassImp(TMCQueue);
 
 ////////////////////////////////////////////////////////////////////////////////
+///
 /// Default constructor
+///
 
 TMCQueue::TMCQueue()
 {}
 
 ////////////////////////////////////////////////////////////////////////////////
+///
 /// Destructor
+///
 
 TMCQueue::~TMCQueue()
 {
+  /// Warn if there are still tracks for potential transport
   if(fTracks.size() > 0) {
     Warning("~TMCQueue", "There were still %i tracks on the queue", Int_t(fTracks.size()));
   }
 }
 
-//_____________________________________________________________________________
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Used to push tracks by the TMCStackManager only
+///
+
 void TMCQueue::PushTrack(TTrack* track)
 {
   fTracks.push(track);
 }
 
-//_____________________________________________________________________________
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Total number of tracks
+///
+
 Int_t TMCQueue::GetNtrack() const
 {
   return fTracks.size();
 }
 
-//_____________________________________________________________________________
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Pop next track to be processed
+///
+
 const TTrack* TMCQueue::PopNextTrack()
 {
-/// Get next particle for tracking from the stack.
-/// \return        The popped particle object
-
   if (fTracks.empty()) {
     return nullptr;
   }
@@ -63,8 +77,5 @@ const TTrack* TMCQueue::PopNextTrack()
   TTrack* track = fTracks.front();
   fTracks.pop();
 
-  if (!track) {
-    return nullptr;
-  }
   return track;
 }

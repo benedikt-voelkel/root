@@ -23,8 +23,7 @@
 
 #include "TMCtls.h"
 
-class TMCManager;
-class TMCStateManager;
+class TVirtualMC;
 class TMCStackManager;
 
 class TVirtualMCApplication : public TNamed {
@@ -42,26 +41,26 @@ public:
    /// Static access method
    static TVirtualMCApplication* Instance();
 
-   //
-   // methods
-   //
-   // --------------- Added methods ---------------------
+   /// Return the current transport engine in use.
+   /// \note This is static so far to ensure backwards compatibility with
+   /// TVirtualMC::GetMC()
+   static TVirtualMC* GetMC();
 
-   /// Construct the entire user geometry already so that is available and the
-   /// TVirtualMCs can pick it up
-   /// \note Geomtry must be built with TGeo
-   /// 1) ConstructGeometry
-   /// 2) MisalignGeometry
-   /// 3) ConstructOpGeometry
-   /// Do not override this method
+   /// Return the TMCStackManager
+   TMCStackManager* GetStackManager() const;
+
    virtual void ConstructUserGeometry();
 
-   /// Generating primaries and invoke the TMCStackManager to initialize the
-   /// VMC queues
-   virtual void GimmePrimaries();
+   /// Register the transport engine.
+   virtual void RegisterMC(TVirtualMC* mc) = 0;
 
+   /// Run the transport by steering engines.
+   virtual void RunTransport(Int_t nofEvents) = 0;
 
-   // --------------- Current status ---------------------
+   //
+   // Virtual methods
+   //
+
    /// Construct user geometry
    virtual void ConstructGeometry() = 0;
 
@@ -141,17 +140,16 @@ public:
    virtual void Merge(TVirtualMCApplication* /*localMCApplication*/) {}
 
  protected:
-   /// Provide the TMCManager which
-   /// 1) provides static access to the engine which is currently running
-   ///    ==> In that way a quasi singleton behaviour is achieved when running a
-   ///        single engine only
-   /// 2) handles different engines in case of a concurrent run
-   TMCManager* fMCManager;
+   /// The current transport engine in use. \note This is static so far to
+   /// ensure backwards compatibility with TVirtualMC::GetMC()
+   #if !defined(__CINT__)
+      static TMCThreadLocal TVirtualMC* fMC;; ///< Singleton instance
+   #else
+      static                TVirtualMC* fMC;; ///< Singleton instance
+   #endif
    /// Provide the TMCStackManager which is the interface between the TVirtualMCStack
    /// defined by the user and the single VMCs and their queues
    TMCStackManager* fMCStackManager;
-   /// Ponter to global state manager
-   TMCStateManager* fMCStateManager;
 
 private:
    // static data members
