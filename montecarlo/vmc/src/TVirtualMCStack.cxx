@@ -68,3 +68,19 @@ TParticle* TVirtualMCStack::PopNextTrack(Int_t&  itrack, Int_t& geoStateIndex)
   geoStateIndex = -1;
   return PopNextTrack(itrack);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Don't assume that the primary at index i has ID i, secondaries might sit
+/// in between
+///
+
+TParticle* TVirtualMCStack::PopPrimaryForTracking(Int_t i, Int_t&  itrack,
+                                                  Int_t& geoStateIndex)
+{
+  geoStateIndex = -1;
+  // That is cheating but the interface itself is incoherently used already.
+  // Normally the following cannot be assumed.
+  itrack = i;
+  return PopPrimaryForTracking(i);
+}

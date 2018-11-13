@@ -43,7 +43,9 @@ TTrack::TTrack(Int_t id, Int_t pdg, Int_t status, TTrack* parent,
 {
   if(parent) {
     SetFirstMother(parent->Id());
+    parent->AddChild(this);
   }
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -60,6 +62,7 @@ TTrack::TTrack(Int_t id, Int_t pdg, Int_t status, TTrack* parent,
 {
   if(parent) {
     SetFirstMother(parent->Id());
+    parent->AddChild(this);
   }
 }
 

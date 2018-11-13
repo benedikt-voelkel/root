@@ -34,7 +34,6 @@
 
 class TTrack;
 class TParticle;
-class TMCQueue;
 class TVirtualMC;
 class TGeoStateCache;
 
@@ -85,6 +84,7 @@ public:
                   Double_t weight, Int_t is) override final;
 
    /// Push a track including its geo state and return the pointer to it.
+   /// Taht is the only user interface required.
    virtual TTrack* PushUserTrack(Int_t parent, Int_t pdg,
                                  Double_t px, Double_t py, Double_t pz,
                                  Double_t e, Double_t vx, Double_t vy,
@@ -103,11 +103,22 @@ public:
    /// Pop next track with geoStateIndex
    TParticle* PopNextTrack(Int_t&  itrack, Int_t& geoStateIndex) override final;
 
+   /// Pop i'th primar, that does not mean that this primariy also has ID==i
+   TParticle* PopPrimaryForTracking(Int_t i) override final;
+
+   /// Pop i'th primar, that does not mean that this primariy also has ID==i.
+   /// including actual index and geoStateIndex
+   TParticle* PopPrimaryForTracking(Int_t i, Int_t& itrack,
+                                    Int_t& geoStateIndex) override final;
+
+   /// Get number of tracks which are only those to be tracked.
+   Int_t GetNtrack() const override final;
+
+   /// Get the number of primaries
+   Int_t GetNprimary() const override final;
+
    /// Current track
    TParticle* GetCurrentTrack() const override final;
-
-   /// Get track object from user
-   virtual TTrack* GetCurrentUserTrack() const = 0;
 
    /// Current track number
    Int_t GetCurrentTrackNumber() const override final;
@@ -128,9 +139,6 @@ public:
    /// Set the current track id from the outside and forward this to the
    /// user's TVirtualMCStack
    void SetCurrentTrack(Int_t trackID) override final;
-
-   /// Let the user set the current track
-   virtual void SetCurrentUserTrack(Int_t trackID) = 0;
 
    /// Set the function called in stepping to check whether a track needs to
    /// be moved
@@ -155,6 +163,9 @@ public:
    /// current engine
    void SuggestTrackForMoving(TVirtualMC* currentMC);
 
+   /// Reset internals, clear TMCQueues and fTracks and reset buffered values
+   void ResetInternals();
+
  private:
    /// Constructor private for save singleton behaviour
    TVirtualMCMultiStack();
@@ -164,6 +175,10 @@ public:
    void InsertTrackTransportStatus(Int_t trackID, ETrackTransportStatus status);
 
   private:
+    /// All tracks
+    TObjArray* fTracks;
+    /// Count the primaries
+    Int_t fPrimaries;
     /// Pointer to current track
     TTrack* fCurrentTrack;
     /// Only the track id
@@ -191,9 +206,13 @@ public:
     /// Decide where to push a track to which has not been transported
     std::function<void(TTrack*, TVirtualMC*&)>  fSpecifyEngineForTrack;
     /// Mapping the pointers of TVirtualMC to their TMCQueue
-    std::map<TVirtualMC*, TMCQueue> fVMCToQueueMap;
+    std::map<TVirtualMC*, TObjArray*> fVMCToTracksMap;
     /// The TMCQueue tracks are currently popped from
-    TMCQueue* fCurrentQueue;
+    TObjArray* fCurrentQueue;
+    /// Mapping the pointers of TVirtualMC to number of primaries in their queue
+    std::map<TVirtualMC*, Int_t> fVMCToPrimariesMap;
+    /// The TMCQueue tracks are currently popped from
+    Int_t* fCurrentNPrimaries;
 
    ClassDefOverride(TVirtualMCMultiStack,1)
 };

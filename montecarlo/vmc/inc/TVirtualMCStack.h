@@ -37,9 +37,6 @@ public:
    // Methods for stacking
    //
 
-   /// Clear and reset the stack
-   virtual void ResetStack() = 0;
-
    /// Create a new particle and push into stack;
    /// - toBeDone   - 1 if particles should go to tracking, 0 otherwise
    /// - parent     - number of the parent track, -1 if track is primary
@@ -81,6 +78,11 @@ public:
    /// is done by MC
    virtual TParticle* PopPrimaryForTracking(Int_t i) = 0;
 
+   /// Don't assume that the primary at index i has ID i, secondaries might sit
+   /// in between
+   virtual TParticle* PopPrimaryForTracking(Int_t i, Int_t& itrack,
+                                            Int_t& geoStateIndex);
+
    //
    // Set methods
    //
@@ -91,9 +93,6 @@ public:
    //
    // Get methods
    //
-
-   /// Number of tracks still to be done
-   virtual Int_t      GetNtrackToDo() const { return 0; }
 
    /// Total number of tracks
    virtual Int_t      GetNtrack()    const = 0;

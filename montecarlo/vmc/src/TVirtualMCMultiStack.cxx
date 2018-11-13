@@ -13,7 +13,6 @@
  #include <iostream>
 
 #include "TVirtualMCMultiStack.h"
-#include "TMCQueue.h"
 #include "TVirtualMC.h"
 #include "TTrack.h"
 #include "TGeoStateCache.h"
@@ -35,17 +34,17 @@ ClassImp(TVirtualMCMultiStack);
 ///
 
 TVirtualMCMultiStack::TVirtualMCMultiStack()
+  : fTracks(new TObjArray(100)), fPrimaries(0), fCurrentTrack(nullptr),
+    fCurrentTrackID(-1), fCurrentParentTrackID(-1),
+    fCurrentPosition(TLorentzVector()), fCurrentMomentum(TLorentzVector()),
+    fTargetMCCached(nullptr), fCachedGeoState(nullptr),
+    fGeoStateCache(TGeoStateCache::Instance()), fCurrentNavigator(nullptr),
+    fCurrentQueue(nullptr), fCurrentNPrimaries(nullptr)
 {
-   fCurrentTrack = nullptr;
-   fCurrentTrackID = -1;
-   fCurrentPosition = TLorentzVector();
-   fCurrentMomentum = TLorentzVector();
-   fCurrentNavigator = nullptr;
-   fTargetMCCached = nullptr;
-   fCachedGeoState = nullptr;
-   fGeoStateCache = TGeoStateCache::Instance();
-   fGeoStateCache->Initialize();
-   fTrackTransportStatus.clear();
+    fGeoStateCache->Initialize();
+    fTrackTransportStatus.clear();
+    fVMCToTracksMap.clear();
+    fVMCToPrimariesMap.clear();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -55,7 +54,14 @@ TVirtualMCMultiStack::TVirtualMCMultiStack()
 
 TVirtualMCMultiStack::~TVirtualMCMultiStack()
 {
-  // Nothing to do at the moment
+  if(fCurrentNPrimaries) {
+    delete fCurrentNPrimaries;
+  }
+  for(auto& q : fVMCToTracksMap) {
+    delete q.second;
+  }
+  delete fTracks;
+
 }
 
 
@@ -65,12 +71,12 @@ TVirtualMCMultiStack::~TVirtualMCMultiStack()
 ///
 /// Without geoStateIndex
 void TVirtualMCMultiStack::PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
-                                Double_t px, Double_t py, Double_t pz,
-                                Double_t e, Double_t vx, Double_t vy,
-                                Double_t vz, Double_t tof, Double_t polx,
-                                Double_t poly, Double_t polz,
-                                TMCProcess mech, Int_t& ntr, Double_t weight,
-                                Int_t is)
+                                     Double_t px, Double_t py, Double_t pz,
+                                     Double_t e, Double_t vx, Double_t vy,
+                                     Double_t vz, Double_t tof, Double_t polx,
+                                     Double_t poly, Double_t polz,
+                                     TMCProcess mech, Int_t& ntr,
+                                     Double_t weight, Int_t is)
 {
   // Just forward to PushTrack including a geoStateIndex
   PushTrack(toBeDone, parent, pdg, px, py, pz,e, vx, vy, vz, tof, polx, poly,
@@ -91,6 +97,10 @@ void TVirtualMCMultiStack::PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
                                  is);
    // Set the track id (for backwards compatibility)
    ntr = track->Id();
+   // If no parent, that's considered to be a primary
+   if(!track->GetParent()) {
+     fPrimaries++;
+   }
 
    // Check whether this track needs to be done
    if(toBeDone) {
@@ -100,6 +110,8 @@ void TVirtualMCMultiStack::PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
    } else {
      InsertTrackTransportStatus(ntr, ETrackTransportStatus::kProcessing);
    }
+   // Sorted by ID so resize if more memory is required.
+   fTracks->AddAtAndExpand(track, ntr);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -109,9 +121,8 @@ void TVirtualMCMultiStack::PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
 
 TParticle* TVirtualMCMultiStack::PopNextTrack(Int_t&  itrack)
 {
-  TTrack* track = fCurrentQueue->PopNextTrack();
-  itrack = track->Id();
-  return track;
+  Int_t geoStateIndex = -1;
+  return PopNextTrack(itrack, geoStateIndex);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -122,10 +133,79 @@ TParticle* TVirtualMCMultiStack::PopNextTrack(Int_t&  itrack)
 TParticle* TVirtualMCMultiStack::PopNextTrack(Int_t&  itrack,
                                               Int_t& geoStateIndex)
 {
-  TTrack* track = fCurrentQueue->PopNextTrack();
-  itrack = track->Id();
-  geoStateIndex = track->GeoStateIndex();
+  TTrack* track = dynamic_cast<TTrack*>(fCurrentQueue->First());
+  if(track) {
+    itrack = track->Id();
+    geoStateIndex = track->GeoStateIndex();
+    // Remove since it's going to be tracked now.
+    fCurrentQueue->RemoveFirst();
+    // Decrement number of primaries if there is no parent
+    if(!track->GetParent()) {
+      *fCurrentNPrimaries--;
+    }
+  }
   return track;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Pop i'th primar, that does not mean that this primariy also has ID==i
+///
+
+TParticle* TVirtualMCMultiStack::PopPrimaryForTracking(Int_t i)
+{
+  Int_t geoStateIndex = -1;
+  Int_t itrack = -1;
+  return PopPrimaryForTracking(i, itrack, geoStateIndex);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Pop i'th primar, that does not mean that this primariy also has ID==i.
+/// including actual index and geoStateIndex
+///
+
+TParticle* TVirtualMCMultiStack::PopPrimaryForTracking(Int_t i, Int_t& itrack,
+                                                       Int_t& geoStateIndex)
+{
+  if(i >= fCurrentQueue->GetEntriesFast()) {
+    itrack = -1;
+    geoStateIndex = -1;
+    return nullptr;
+  }
+  TTrack* track = nullptr;
+  // Loop and check whether there is a primary at place j
+  for(Int_t j = 0; j < fCurrentQueue->GetEntriesFast(); j++) {
+    track = dynamic_cast<TTrack*>(fCurrentQueue->At(j));
+    // If that's a primary, set id and geoStateIndex, remove it and break
+    if(track && !track->GetParent()) {
+      itrack = track->Id();
+      geoStateIndex = track->GeoStateIndex();
+      fCurrentQueue->RemoveAt(j);
+      break;
+    }
+  }
+  return track;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Count number of tracks in current queue
+///
+
+Int_t TVirtualMCMultiStack::GetNtrack() const
+{
+  return fCurrentQueue->GetEntriesFast();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Count number of primaries in current queue
+///
+
+Int_t TVirtualMCMultiStack::GetNprimary() const
+{
+  return *fCurrentNPrimaries;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -142,7 +222,11 @@ void TVirtualMCMultiStack::PushToQueue(TTrack* track)
   if(!mc) {
     Fatal("PushToQueue", "No engine specified");
   }
-  fVMCToQueueMap[mc].PushTrack(track);
+  fVMCToTracksMap[mc]->Add(track);
+  // Imcrement number of primaries for this queue
+  if(!track->GetParent()) {
+    fVMCToPrimariesMap[mc]++;
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -153,8 +237,10 @@ void TVirtualMCMultiStack::PushToQueue(TTrack* track)
 void TVirtualMCMultiStack::InsertTrackTransportStatus(Int_t trackID,
                                                    ETrackTransportStatus status)
 {
+  // Resize to twice the size
   if(trackID > fTrackTransportStatus.size()) {
-    fTrackTransportStatus.resize(fTrackTransportStatus.size() + 1, ETrackTransportStatus::kFinished);
+    fTrackTransportStatus.resize(2 * fTrackTransportStatus.size() + 1,
+                                 ETrackTransportStatus::kFinished);
   }
   fTrackTransportStatus[trackID] = status;
 }
@@ -212,8 +298,8 @@ ETrackTransportStatus TVirtualMCMultiStack::GetTrackTransportStatus() const
 
 Bool_t TVirtualMCMultiStack::HasTracks(TVirtualMC* mc) const
 {
-  const auto it = fVMCToQueueMap.find(mc);
-  if(it != fVMCToQueueMap.end() && it->second.GetNtrack() > 0) {
+  const auto it = fVMCToTracksMap.find(mc);
+  if(it != fVMCToTracksMap.end() && it->second->GetEntriesFast() > 0) {
     return kTRUE;
   }
   return kTRUE;
@@ -227,10 +313,12 @@ Bool_t TVirtualMCMultiStack::HasTracks(TVirtualMC* mc) const
 
 void TVirtualMCMultiStack::SetCurrentTrack(Int_t trackID)
 {
-  SetCurrentUserTrack(trackID);
-  fCurrentTrackID = trackID;
-  fCurrentTrack = GetCurrentUserTrack();
-  fCurrentParentTrackID = fCurrentTrack->GetFirstMother();
+  TTrack* track = dynamic_cast<TTrack*>(fTracks->At(trackID));
+  if(track) {
+    fCurrentTrackID = trackID;
+    fCurrentTrack = track;
+    fCurrentParentTrackID = fCurrentTrack->GetFirstMother();
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -263,8 +351,9 @@ void TVirtualMCMultiStack::RegisterSpecifyEngineForTrack(
 
 void TVirtualMCMultiStack::SetQueue(TVirtualMC* mc)
 {
-  // Set the current TMCQueue
-  fCurrentQueue = &fVMCToQueueMap[mc];
+  // Set the current queue and primary counter
+  fCurrentQueue = fVMCToTracksMap[mc];
+  fCurrentNPrimaries = &fVMCToPrimariesMap[mc];
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -295,11 +384,27 @@ void TVirtualMCMultiStack::SuggestTrackForMoving(TVirtualMC* currentMC)
     fCurrentTrack->GeoStateIndex(fCachedGeoState->GetUniqueID());
 
     // Push current track to queue of next responsible engine...
-    fVMCToQueueMap[fTargetMCCached].PushTrack(fCurrentTrack);
+    fVMCToTracksMap[fTargetMCCached]->Add(fCurrentTrack);
+    if(!fCurrentTrack->GetParent()) {
+      fVMCToPrimariesMap[fTargetMCCached]++;
+    }
     // ..., stop this track and...
     currentMC->StopTrack();
     // ...update its transport status. This is mainly used to control calls of
     // TVirtualMCApplication::PreTrack() and ::PostTrack().
     fTrackTransportStatus[fCurrentTrack->Id()] = ETrackTransportStatus::kProcessing;
+  }
+}
+
+void TVirtualMCMultiStack::ResetInternals()
+{
+  // Clear cached track pointers, user has to do actual de-allocation
+  fTracks->Clear();
+  fCurrentTrack = nullptr;
+  fCurrentTrackID = -1;
+  fCurrentParentTrackID = -1;
+  fTrackTransportStatus.clear();
+  for(auto& q : fVMCToTracksMap) {
+    q.second->Clear();
   }
 }

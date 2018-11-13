@@ -143,6 +143,7 @@ void TVirtualMCMultiApplication::RunTransport(Int_t nofEvents)
     }
     // Call user finish event action
     FinishEventMulti();
+    fStack->ResetInternals();
   }
   // Terminate this run
   TerminateRun();

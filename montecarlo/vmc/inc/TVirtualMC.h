@@ -698,10 +698,12 @@ public:
    /// Return the current position in the master reference frame of the
    /// track being transported (as double)
    virtual void     TrackPosition(Double_t &x, Double_t &y, Double_t &z, Double_t &t) const =0;
+   virtual void     TrackPosition(Double_t &x, Double_t &y, Double_t &z) const;
 
    /// Return the current position in the master reference frame of the
    /// track being transported (as float)
-   virtual void TrackPosition(Float_t &x, Float_t &y, Float_t &z, Float_t &t) const;
+   virtual void TrackPosition(Float_t &x, Float_t &y, Float_t &z, Float_t &t) const =0;
+   virtual void TrackPosition(Float_t &x, Float_t &y, Float_t &z) const;
 
    /// Return the direction and the momentum (GeV/c) of the track
    /// currently being transported

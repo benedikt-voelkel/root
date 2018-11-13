@@ -96,6 +96,28 @@ TVirtualMC* TVirtualMC::GetMC() {
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
+/// Support this method for backwards compatibility in case the user wants to
+/// use this interface
+///
+
+void TVirtualMC::TrackPosition(Float_t &x, Float_t &y, Float_t &z) const {
+   Float_t t = 0.;
+   TrackPosition(x, y, z, t);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Support this method for backwards compatibility in case the user wants to
+/// use this interface
+///
+
+void TVirtualMC::TrackPosition(Double_t &x, Double_t &y, Double_t &z) const {
+   Double_t t = 0.;
+   TrackPosition(x, y, z, t);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
 /// Set individual particles queue for this VMC.
 ///
 
