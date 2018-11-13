@@ -27,9 +27,9 @@
 #include "TMCOptical.h"
 #include "TMCtls.h"
 #include "TVirtualMCApplication.h"
-#include "TMCQueue.h"
 #include "TVirtualMCDecayer.h"
 #include "TVirtualMagField.h"
+#include "TVirtualMCStack.h"
 #include "TRandom.h"
 #include "TString.h"
 #include "TError.h"
@@ -845,7 +845,7 @@ public:
    //
 
    /// Set individual particles queue for this VMC
-   virtual void SetQueue(TMCQueue* queue);
+   virtual void SetStack(TVirtualMCStack* stack);
 
    /// Set the external decayer
    virtual void SetExternalDecayer(TVirtualMCDecayer* decayer);
@@ -863,7 +863,7 @@ public:
     //
 
     /// Return individual particles queue for this VMC
-    TMCQueue*   GetQueue() const   { return fQueue; }
+    TVirtualMCStack*   GetStack() const   { return fStack; }
 
     /// Return the external decayer
     TVirtualMCDecayer* GetDecayer() const { return fDecayer; }
@@ -881,7 +881,7 @@ private:
    TVirtualMC(const TVirtualMC &mc);
    TVirtualMC & operator=(const TVirtualMC &);
 
-   TMCQueue*           fQueue;   //!< Individual particles queue for this VMC
+   TVirtualMCStack*    fStack;   //!< Individual particles queue for this VMC
    TVirtualMCDecayer*  fDecayer; //!< External decayer
    TRandom*            fRandom;  //!< Random number generator
    TVirtualMagField*   fMagField;//!< Magnetic field

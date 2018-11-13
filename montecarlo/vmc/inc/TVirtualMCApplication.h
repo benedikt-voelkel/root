@@ -24,7 +24,6 @@
 #include "TMCtls.h"
 
 class TVirtualMC;
-class TMCStackManager;
 
 class TVirtualMCApplication : public TNamed {
 
@@ -41,21 +40,24 @@ public:
    /// Static access method
    static TVirtualMCApplication* Instance();
 
-   /// Return the current transport engine in use.
+   /// Return the current transport engine in use
    /// \note This is static so far to ensure backwards compatibility with
    /// TVirtualMC::GetMC()
-   static TVirtualMC* GetMC();
+   static TVirtualMC* GetMCStatic();
 
-   /// Return the TMCStackManager
-   TMCStackManager* GetStackManager() const;
+   /// Return the current transport engine in use
+   TVirtualMC* GetMC() const;
 
    virtual void ConstructUserGeometry();
 
    /// Register the transport engine.
-   virtual void RegisterMC(TVirtualMC* mc) = 0;
+   virtual void RegisterMC(TVirtualMC* mc);
+
+   /// Initialize the transport by steering engines.
+   virtual void InitTransport();
 
    /// Run the transport by steering engines.
-   virtual void RunTransport(Int_t nofEvents) = 0;
+   virtual void RunTransport(Int_t nofEvents);
 
    //
    // Virtual methods
@@ -147,9 +149,6 @@ public:
    #else
       static                TVirtualMC* fMC;; ///< Singleton instance
    #endif
-   /// Provide the TMCStackManager which is the interface between the TVirtualMCStack
-   /// defined by the user and the single VMCs and their queues
-   TMCStackManager* fMCStackManager;
 
 private:
    // static data members

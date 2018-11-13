@@ -16,8 +16,8 @@
 // the TGeoNavigator is supported.                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#ifndef ROOT_TGeoCacheManual
-#define ROOT_TGeoCacheManual
+#ifndef ROOT_TGeoStateCache
+#define ROOT_TGeoStateCache
 
 #include <vector>
 
@@ -25,13 +25,12 @@
 
 class TGeoBranchArray;
 
-
-class TGeoCacheManual
+class TGeoStateCache
 {
   public:
-    ~TGeoCacheManual();
+    ~TGeoStateCache();
     /// Get pointer to singleton instance
-    static TGeoCacheManual* Instance();
+    static TGeoStateCache* Instance();
 
     /// Do initialization steps
     void Initialize(Int_t initialCapacity = 8, Int_t maxLevel = 1);
@@ -45,12 +44,12 @@ class TGeoCacheManual
 
 
   private:
-    TGeoCacheManual();
-    TGeoCacheManual(const TGeoCacheManual&);
+    TGeoStateCache();
+    TGeoStateCache(const TGeoStateCache&);
 
   private:
     /// Pointer to singleton instance
-    static TGeoCacheManual* fgInstance;
+    static TGeoStateCache* fgInstance;
 
     /// Vector of navigator interfaces
     /// Cache states via TGeoBranchArray
@@ -71,7 +70,8 @@ class TGeoCacheManual
     /// Constant default number of levels
     static constexpr Int_t DEFAULT_MAX_LEVELS = 100;
 
+    //ClassDef(TGeoStateCache,1)
+
 };
 
-
-#endif /* ROOT_TGeoCacheManual */
+#endif /* ROOT_TGeoStateCache */

@@ -21,7 +21,8 @@
 #include "TObject.h"
 #include "TMCProcess.h"
 
-class TTrack;
+class TParticle;
+
 
 class TVirtualMCStack : public TObject {
 
@@ -59,16 +60,26 @@ public:
                            TMCProcess mech, Int_t& ntr, Double_t weight,
                            Int_t is) = 0;
 
+   /// With geoStateIndex
+   virtual void PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
+                          Double_t px, Double_t py, Double_t pz, Double_t e,
+                          Double_t vx, Double_t vy, Double_t vz, Double_t tof,
+                          Double_t polx, Double_t poly, Double_t polz,
+                          Int_t geoStateIndex, TMCProcess mech, Int_t& ntr,
+                          Double_t weight, Int_t is);
+
 
    /// The stack has to provide two pop mechanisms:
    /// The first pop mechanism required.
    /// Pop all particles with toBeDone = 1, both primaries and seconadies
-   virtual TTrack* PopNextTrack(Int_t& itrack) = 0;
+   virtual TParticle* PopNextTrack(Int_t& itrack) = 0;
+
+   virtual TParticle* PopNextTrack(Int_t&  itrack, Int_t& geoStateIndex);
 
    /// The second pop mechanism required.
    /// Pop only primary particles with toBeDone = 1, stacking of secondaries
    /// is done by MC
-   virtual TTrack* PopPrimaryForTracking(Int_t i) = 0;
+   virtual TParticle* PopPrimaryForTracking(Int_t i) = 0;
 
    //
    // Set methods
@@ -91,7 +102,7 @@ public:
    virtual Int_t      GetNprimary()  const = 0;
 
    /// Current track particle
-   virtual TTrack* GetCurrentTrack() const= 0;
+   virtual TParticle* GetCurrentTrack() const = 0;
 
    /// Current track number
    virtual Int_t      GetCurrentTrackNumber() const = 0;

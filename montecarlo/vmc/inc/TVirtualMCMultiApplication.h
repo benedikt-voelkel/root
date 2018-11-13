@@ -21,6 +21,8 @@
 
 #include "TVirtualMCApplication.h"
 
+class TVirtualMCMultiStack;
+
 class TVirtualMCMultiApplication : public TVirtualMCApplication {
 
 public:
@@ -37,17 +39,25 @@ public:
    static TVirtualMCMultiApplication* Instance();
 
    /// Register a new transport engine
-   void RegisterMC(TVirtualMC* mc) final;
+   void RegisterMC(TVirtualMC* mc) override final;
+
+   /// Set the TVirtualMCMultiStack
+   void SetStack(TVirtualMCMultiStack* stack);
 
    /// Do all initialisation steps at once
-   virtual void InitEngines();
+   void InitTransport() override final;
 
    /// Run the transport by steering engines
-   void RunTransport(Int_t nofEvents) final;
+   void RunTransport(Int_t nofEvents) override final;
+
 
    //
    // Virtual methods
    //
+
+   /// Construct user geometry
+   void ConstructGeometry() override final;
+   virtual void ConstructGeometryMulti() = 0;
 
    /// Initialize geometry
    /// (Usually used to define sensitive volumes IDs)
@@ -97,6 +107,8 @@ public:
    private:
      /// A vector holding all registered engine pointers.
      std::vector<TVirtualMC*> fMCEngines;
+     /// The TVirtualMCMultiStack
+     TVirtualMCMultiStack* fStack;
 
    ClassDefOverride(TVirtualMCMultiApplication,1)
 };

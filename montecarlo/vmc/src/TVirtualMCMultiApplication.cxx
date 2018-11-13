@@ -11,7 +11,7 @@
  *************************************************************************/
 
 #include "TVirtualMCMultiApplication.h"
-#include "TMCStackManager.h"
+#include "TVirtualMCMultiStack.h"
 #include "TVirtualMC.h"
 #include "TGeoManager.h"
 
@@ -61,10 +61,6 @@ void TVirtualMCMultiApplication::RegisterMC(TVirtualMC* newMC)
 {
   // First set the current engine
   fMC = newMC;
-  // Update values of all user connected TVirtualMC pointers
-  //UpdateConnectedEnginePointers();
-  // Set queue for this engine
-  fMCStackManager->SetQueue(newMC);
   // If in concurrent mode, add engine to the list of engines
   // make sure, at least engine names are unique
   for(auto& mc : fMCEngines) {
@@ -76,18 +72,35 @@ void TVirtualMCMultiApplication::RegisterMC(TVirtualMC* newMC)
   fMCEngines.push_back(newMC);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Set the TVirtualMCMultiStack
+///
+
+void TVirtualMCMultiApplication::SetStack(TVirtualMCMultiStack* stack)
+{
+  if(fStack && fStack != stack) {
+    Warning("SetStack", "There is already a TVirtualMCMultiStack " \
+                        "which will be overriden now.");
+  }
+  fStack = stack;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
 /// Do all initialisation steps at once
 ///
 // \note \todo Do this via a lambda given by the user?
-void TVirtualMCMultiApplication::InitEngines()
+void TVirtualMCMultiApplication::InitTransport()
 {
   // Some user pre init steps
   // At this point the TGeoManager must be there with closed geometry
   if(!gGeoManager || !gGeoManager->IsClosed()) {
     Fatal("InitMCs","Could not find TGeoManager or geometry is still not closed");
+  }
+  // Check whether there is a TVirtualMCMultiStack and fail if not.
+  if(!fStack) {
+    Fatal("InitMCs","A TVirtualMCMultiStack si required");
   }
 
   // Initialize engines
@@ -98,6 +111,8 @@ void TVirtualMCMultiApplication::InitEngines()
     // Further init steps for the MCs
     mc->Init();
     mc->BuildPhysics();
+    // Set the stack for this engine
+    mc->SetStack(fStack);
   }
 }
 
@@ -109,7 +124,7 @@ void TVirtualMCMultiApplication::InitEngines()
 void TVirtualMCMultiApplication::RunTransport(Int_t nofEvents)
 {
   // Set initial navigator \todo Move this to a more consistent place.
-  fMCStackManager->SetCurrentNavigator(gGeoManager->GetCurrentNavigator());
+  fStack->SetCurrentNavigator(gGeoManager->GetCurrentNavigator());
   // Check dryrun, so far nothing is done.
   if(nofEvents < 1) {
     Info("RunMCs", "Starting dry run.");
@@ -142,11 +157,12 @@ Bool_t TVirtualMCMultiApplication::GetNextEngine()
 {
   // \note Kind of brute force selection by bjust checking the queue
   for(auto& mc : fMCEngines) {
-    if(mc->GetQueue()->GetNtrack() > 0) {
+    if(fStack->HasTracks(mc)) {
       fMC = mc;
+      fStack->SetQueue(mc);
       // Set the current navigator for this engine.
       // \todo The following works since right now there is only one navigator.
-      fMCStackManager->SetCurrentNavigator(gGeoManager->GetCurrentNavigator());
+      fStack->SetCurrentNavigator(gGeoManager->GetCurrentNavigator());
       //UpdateConnectedEnginePointers();
       return kTRUE;
     }
@@ -167,6 +183,15 @@ void TVirtualMCMultiApplication::TerminateRun()
   }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Construct user geometry
+///
+
+void TVirtualMCMultiApplication::ConstructGeometry()
+{
+  // Do nothing here
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
@@ -206,7 +231,7 @@ void TVirtualMCMultiApplication::BeginEvent()
 
 void TVirtualMCMultiApplication::BeginPrimary()
 {
-  if(fMCStackManager->GetTrackTransportStatus() == ETrackTransportStatus::kNew) {
+  if(fStack->GetTrackTransportStatus() == ETrackTransportStatus::kNew) {
     BeginPrimaryMulti();
   }
 }
@@ -219,7 +244,7 @@ void TVirtualMCMultiApplication::BeginPrimary()
 void TVirtualMCMultiApplication::PreTrack()
 {
   // Check conditions and then call the BeginEventMulti()
-  if(fMCStackManager->GetTrackTransportStatus() == ETrackTransportStatus::kNew) {
+  if(fStack->GetTrackTransportStatus() == ETrackTransportStatus::kNew) {
     PreTrackMulti();
   }
 }
@@ -234,7 +259,7 @@ void TVirtualMCMultiApplication::Stepping()
   // Call the user stepping actions
   // /Info("Stepping", "Do custom user stepping");
   SteppingMulti();
-  fMCStackManager->SuggestTrackForMoving(fMC);
+  fStack->SuggestTrackForMoving(fMC);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

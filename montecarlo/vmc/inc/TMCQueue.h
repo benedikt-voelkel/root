@@ -26,8 +26,6 @@ class TTrack;
 
 class TMCQueue {
 
-/// TMCStackManager is friend so only this can push tracks.
-friend class TMCStackManager;
 
 public:
    // Constructor
@@ -40,11 +38,13 @@ public:
    Int_t GetNtrack() const;
 
    /// Pop next track to be processed
-   const TTrack* PopNextTrack();
+   TTrack* PopNextTrack();
+
+   /// Push a track
+   void PushTrack(TTrack* track);
 
  private:
-   /// Used to push tracks by the TMCStackManager only
-   void PushTrack(TTrack* track);
+
 
  private:
    std::queue<TTrack*> fTracks;

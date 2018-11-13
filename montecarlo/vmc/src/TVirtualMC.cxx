@@ -42,7 +42,7 @@ TVirtualMC::TVirtualMC(const char *name, const char *title,
                        Bool_t /*isRootGeometrySupported*/)
   : TNamed(name,title),
     fApplication(0),
-    fQueue(0),
+    fStack(0),
     fDecayer(0),
     fRandom(0),
     fMagField(0)
@@ -66,7 +66,7 @@ TVirtualMC::TVirtualMC(const char *name, const char *title,
 TVirtualMC::TVirtualMC()
   : TNamed(),
     fApplication(0),
-    fQueue(0),
+    fStack(0),
     fDecayer(0),
     fRandom(0),
     fMagField(0)
@@ -91,7 +91,7 @@ TVirtualMC::~TVirtualMC()
 ///
 
 TVirtualMC* TVirtualMC::GetMC() {
-   return TVirtualMCApplication::GetMC();
+   return TVirtualMCApplication::GetMCStatic();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -99,9 +99,9 @@ TVirtualMC* TVirtualMC::GetMC() {
 /// Set individual particles queue for this VMC.
 ///
 
-void TVirtualMC::SetQueue(TMCQueue* queue)
+void TVirtualMC::SetStack(TVirtualMCStack* stack)
 {
-   fQueue = queue;
+   fStack = stack;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

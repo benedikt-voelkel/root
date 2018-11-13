@@ -45,7 +45,7 @@ TMCQueue::~TMCQueue()
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
-/// Used to push tracks by the TMCStackManager only
+/// Push a track
 ///
 
 void TMCQueue::PushTrack(TTrack* track)
@@ -68,7 +68,7 @@ Int_t TMCQueue::GetNtrack() const
 /// Pop next track to be processed
 ///
 
-const TTrack* TMCQueue::PopNextTrack()
+TTrack* TMCQueue::PopNextTrack()
 {
   if (fTracks.empty()) {
     return nullptr;

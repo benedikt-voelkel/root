@@ -1,5 +1,5 @@
 // @(#)root/vmc:$Id$
-// Authors: Benedikt Volkel 06/08/2018
+// Authors: Benedikt Volkel 30/10/2018
 
 /*************************************************************************
  * Copyright (C) 2006, Rene Brun and Fons Rademakers.                    *
@@ -10,13 +10,15 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
-#include "TGeoCacheManual.h"
+#include "TGeoStateCache.h"
 #include "TGeoBranchArray.h"
 #include "TError.h"
 
-TGeoCacheManual* TGeoCacheManual::fgInstance = nullptr;
+//ClassImp(TGeoStateCache);
 
-TGeoCacheManual::TGeoCacheManual()
+TGeoStateCache* TGeoStateCache::fgInstance = nullptr;
+
+TGeoStateCache::TGeoStateCache()
   : fCacheSize(0), fNextIndex(0), fCurrentIndex(-1), fMaxLevels(0)
 {
   fCache.clear();
@@ -24,21 +26,21 @@ TGeoCacheManual::TGeoCacheManual()
   fIsIndexFree.clear();
 }
 
-TGeoCacheManual::~TGeoCacheManual()
+TGeoStateCache::~TGeoStateCache()
 {
   ClearCache();
   fgInstance = nullptr;
 }
 
-TGeoCacheManual* TGeoCacheManual::Instance()
+TGeoStateCache* TGeoStateCache::Instance()
 {
   if(!fgInstance) {
-    fgInstance = new TGeoCacheManual();
+    fgInstance = new TGeoStateCache();
   }
   return fgInstance;
 }
 
-void TGeoCacheManual::Initialize(Int_t initialCapacity, Int_t maxLevel)
+void TGeoStateCache::Initialize(Int_t initialCapacity, Int_t maxLevel)
 {
   if(fCacheSize > 0) {
     Warning("Initialize", "Cache is already initialised. Will be cleared and re-initialised");
@@ -59,7 +61,7 @@ void TGeoCacheManual::Initialize(Int_t initialCapacity, Int_t maxLevel)
 
 }
 
-void TGeoCacheManual::ClearCache()
+void TGeoStateCache::ClearCache()
 {
   // Empty cache.
   if(!fCache.empty()) {
@@ -75,7 +77,7 @@ void TGeoCacheManual::ClearCache()
   fNextIndex = 0;
 }
 
-TGeoBranchArray* TGeoCacheManual::GetNewGeoState()
+TGeoBranchArray* TGeoStateCache::GetNewGeoState()
 {
   //Info("GetNewGeoState", "Cache size: %i", fCacheSize);
   // Check for free index
@@ -110,11 +112,11 @@ TGeoBranchArray* TGeoCacheManual::GetNewGeoState()
   return fCache[fCurrentIndex];
 }
 
-const TGeoBranchArray* TGeoCacheManual::GetGeoState(Int_t id)
+const TGeoBranchArray* TGeoStateCache::GetGeoState(Int_t id)
 {
   if(id < 0 || id >= fCacheSize) {
-    // Not a geo state managed by the TGeoCacheManual
-    Fatal("GetGeoState", "Not a geo state managed by the TGeoCacheManual");
+    // Not a geo state managed by the TGeoStateCache
+    Fatal("GetGeoState", "Not a geo state managed by the TGeoStateCache");
     return nullptr;
   }
   // Implicitly unlock this index so it is free for later use.

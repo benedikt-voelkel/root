@@ -11,7 +11,7 @@
  *************************************************************************/
 
 #include "TVirtualMCApplication.h"
-#include "TMCStackManager.h"
+#include "TVirtualMCMultiStack.h"
 #include "TVirtualMC.h"
 #include "TGeoManager.h"
 
@@ -44,8 +44,6 @@ TVirtualMCApplication::TVirtualMCApplication(const char *name,
    // There cannot be a TVirtualMC since it must have registered to this
    // TVirtualMCApplication
    fMC = nullptr;
-   // Get the TMCStackManager
-   fMCStackManager = TMCStackManager::Instance();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -54,7 +52,6 @@ TVirtualMCApplication::TVirtualMCApplication(const char *name,
 ///
 
 TVirtualMCApplication::TVirtualMCApplication()
-  : TNamed(), fMCStackManager(TMCStackManager::Instance())
 {
    fgInstance = this;
    fMC = nullptr;
@@ -82,20 +79,20 @@ TVirtualMCApplication* TVirtualMCApplication::Instance()
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
-/// Return pointer to the TMCStackManager
+/// For backwards compatibility provide a static GetMC method
 ///
 
-TMCStackManager* TVirtualMCApplication::GetStackManager() const
+TVirtualMC* TVirtualMCApplication::GetMCStatic()
 {
-  return fMCStackManager;
+  return fMC;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
-/// For backwards compatibility provide a static GetMC method.
+/// Return the current transport engine in use
 ///
 
-TVirtualMC* TVirtualMCApplication::GetMC()
+TVirtualMC* TVirtualMCApplication::GetMC() const
 {
   return fMC;
 }
@@ -116,4 +113,55 @@ void TVirtualMCApplication::ConstructUserGeometry()
   }
   MisalignGeometry();
   ConstructOpGeometry();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Register a VMC to this TVirtualMCApplication.
+///
+
+void TVirtualMCApplication::RegisterMC(TVirtualMC* mc)
+{
+  // If there is already a transport engine, fail since only one is allowed.
+  if(fMC) {
+    Fatal("RegisterMC", "Attempt to register a second TVirtualMC which " \
+                        "is not allowed");
+  }
+  fMC = mc;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Do all initialisation steps at once
+///
+// \note \todo Do this via a lambda given by the user?
+void TVirtualMCApplication::InitTransport()
+{
+  // Some user pre init steps
+  // At this point the TGeoManager must be there with closed geometry
+  if(!gGeoManager || !gGeoManager->IsClosed()) {
+    Fatal("InitMCs","Could not find TGeoManager or geometry is still not closed");
+  }
+
+  Info("InitMCs", "Initialize engine %s", fMC->GetName());
+  // Notify to use geometry built using TGeo
+  fMC->SetRootGeometry();
+  // Further init steps for the MCs
+  fMC->Init();
+  fMC->BuildPhysics();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Run the transport by steering engines
+///
+
+void TVirtualMCApplication::RunTransport(Int_t nofEvents)
+{
+  // Check dryrun, so far nothing is done.
+  if(nofEvents < 1) {
+    Info("RunMCs", "Starting dry run.");
+    return;
+  }
+  fMC->ProcessRun(nofEvents);
 }
