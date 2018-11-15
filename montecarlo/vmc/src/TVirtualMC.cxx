@@ -30,8 +30,6 @@ when processing a ROOT macro where the concrete Monte Carlo is instantiated.
 
 ClassImp(TVirtualMC);
 
-TMCThreadLocal TVirtualMC* TVirtualMC::fgMC=0;
-
 ////////////////////////////////////////////////////////////////////////////////
 ///
 /// Standard constructor
@@ -46,19 +44,15 @@ TVirtualMC::TVirtualMC(const char *name, const char *title,
     fRandom(0),
     fMagField(0)
 {
-   if(fgMC) {
-      Warning("TVirtualMC","Cannot initialise twice MonteCarlo class");
-   } else {
-      fgMC=this;
+    fApplication = TVirtualMCApplication::Instance();
 
-      fApplication = TVirtualMCApplication::Instance();
-
-      if (!fApplication) {
-         Error("TVirtualMC", "No user MC application is defined.");
-      }
-
-      fRandom = gRandom;
-   }
+    if (!fApplication) {
+       Error("TVirtualMC", "No user MC application is defined.");
+    }
+    // Register this VMC to the running TVirtualMCApplication and get
+    // assigned ID
+    fApplication->RegisterMC(this);
+    fRandom = gRandom;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -83,7 +77,6 @@ TVirtualMC::TVirtualMC()
 
 TVirtualMC::~TVirtualMC()
 {
-   fgMC=0;
 }
 
 //
@@ -96,7 +89,29 @@ TVirtualMC::~TVirtualMC()
 ///
 
 TVirtualMC* TVirtualMC::GetMC() {
-   return fgMC;
+   return TVirtualMCApplication::GetMCStatic();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Support this method for backwards compatibility in case the user wants to
+/// use this interface
+///
+
+void TVirtualMC::TrackPosition(Double_t &x, Double_t &y, Double_t &z) const {
+   Double_t t = 0.;
+   TrackPosition(x, y, z, t);
+ }
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Support this method for backwards compatibility in case the user wants to
+/// use this interface
+///
+
+void TVirtualMC::TrackPosition(Float_t &x, Float_t &y, Float_t &z) const {
+   Float_t t = 0.;
+   TrackPosition(x, y, z, t);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -138,4 +153,14 @@ void TVirtualMC::SetRandom(TRandom* random)
 void TVirtualMC::SetMagField(TVirtualMagField* field)
 {
    fMagField = field;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Set the VMC id
+///
+
+void TVirtualMC::SetId(UInt_t id)
+{
+   fId = id;
 }

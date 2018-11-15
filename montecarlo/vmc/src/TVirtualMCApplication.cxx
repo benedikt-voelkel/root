@@ -12,6 +12,10 @@
 
 #include "TVirtualMCApplication.h"
 #include "TError.h"
+#include "TVirtualMC.h"
+#include "TParticle.h"
+#include "TVector3.h"
+#include "TLorentzVector.h"
 
 /** \class TVirtualMCApplication
     \ingroup vmc
@@ -23,6 +27,7 @@ Interface to a user Monte Carlo application.
 ClassImp(TVirtualMCApplication);
 
 TMCThreadLocal TVirtualMCApplication* TVirtualMCApplication::fgInstance = 0;
+TMCThreadLocal TVirtualMC* TVirtualMCApplication::fMC = 0;
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
@@ -39,6 +44,9 @@ TVirtualMCApplication::TVirtualMCApplication(const char *name,
    }
 
    fgInstance = this;
+   // There cannot be a TVirtualMC since it must have registered to this
+   // TVirtualMCApplication
+   fMC = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -50,6 +58,7 @@ TVirtualMCApplication::TVirtualMCApplication()
   : TNamed()
 {
    fgInstance = this;
+   fMC = nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -70,4 +79,41 @@ TVirtualMCApplication::~TVirtualMCApplication()
 TVirtualMCApplication* TVirtualMCApplication::Instance()
 {
   return fgInstance;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// For backwards compatibility provide a static GetMC method
+///
+
+TVirtualMC* TVirtualMCApplication::GetMCStatic()
+{
+  return fMC;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Return the current transport engine in use
+///
+
+TVirtualMC* TVirtualMCApplication::GetMC() const
+{
+  return fMC;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Register a VMC to this TVirtualMCApplication.
+///
+
+void TVirtualMCApplication::RegisterMC(TVirtualMC* mc)
+{
+  // If there is already a transport engine, fail since only one is allowed.
+  if(fMC) {
+    Fatal("RegisterMC", "Attempt to register a second TVirtualMC which " \
+                        "is not allowed");
+  }
+  fMC = mc;
+  // There is only 1 VMC in this case so ID is known to be 0.
+  fMC->SetId(0);
 }

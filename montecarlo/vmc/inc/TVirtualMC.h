@@ -38,6 +38,7 @@ class TGeoHMatrix;
 class TArrayI;
 class TArrayD;
 class TVirtualMCSensitiveDetector;
+class TGeoMCBranchArrayContainer;
 
 class TVirtualMC : public TNamed {
 
@@ -401,6 +402,19 @@ public:
    /// Set geometry from Root (built via TGeo)
    virtual void  SetRootGeometry() = 0;
 
+   /// Set the container where - in case of TGeo geometry usage - cached
+   /// TGeoBranchArrays can be found to initialize the navigator with.
+   /// TVirtualMCStack::GetCurrentTrackGeoStateIndex() returns the geo state
+   /// index of the current track which can be popped from the container.
+   void SetBranchArrayContainer(TGeoMCBranchArrayContainer* container)
+   {
+      fBranchArrayContainer = container;
+   }
+   TGeoMCBranchArrayContainer* GetBranchArrayContainer() const
+   {
+     return fBranchArrayContainer;
+   }
+
    /// Activate the parameters defined in tracking media
    /// (DEEMAX, STMIN, STEMAX), which are, be default, ignored.
    /// In Geant4 case, only STEMAX is taken into account.
@@ -712,11 +726,15 @@ public:
 
    /// Return the current position in the master reference frame of the
    /// track being transported (as double)
-   virtual void     TrackPosition(Double_t &x, Double_t &y, Double_t &z) const =0;
+   virtual void     TrackPosition(Double_t &x, Double_t &y, Double_t &z, Double_t &t) const =0;
+   /// Only return spatial coordinates (as double)
+   virtual void     TrackPosition(Double_t &x, Double_t &y, Double_t &z) const;
 
    /// Return the current position in the master reference frame of the
    /// track being transported (as float)
-   virtual void TrackPosition(Float_t &x, Float_t &y, Float_t &z) const =0;
+   virtual void TrackPosition(Float_t &x, Float_t &y, Float_t &z, Float_t &t) const =0;
+   /// Only return spatial coordinates (as float)
+   virtual void TrackPosition(Float_t &x, Float_t &y, Float_t &z) const;
 
    /// Return the direction and the momentum (GeV/c) of the track
    /// currently being transported
@@ -834,12 +852,14 @@ public:
    virtual void BuildPhysics() = 0;
 
    /// Process one event
-   /// Deprecated
-   virtual void ProcessEvent() = 0;
+   virtual void ProcessEvent(Int_t eventId) = 0;
 
    /// Process one  run and return true if run has finished successfully,
    /// return false in other cases (run aborted by user)
    virtual Bool_t ProcessRun(Int_t nevent) = 0;
+
+   /// Additional cleanup after a run can be done here (optional)
+   virtual void TerminateRun() {}
 
    /// Set switches for lego transport
    virtual void InitLego() = 0;
@@ -889,23 +909,41 @@ public:
     /// Return the magnetic field
     TVirtualMagField*  GetMagField() const  { return fMagField; }
 
+    /// Return the VMC's ID
+    Int_t              GetId() const { return fId; }
+
+
 protected:
    TVirtualMCApplication* fApplication; //!< User MC application
 
+
 private:
+   // Set friends so these can set the ID.
+   friend class TVirtualMCApplication;
+   friend class TVirtualMCMultiApplication;
+   /// Set the VMC id
+   void SetId(UInt_t id);
+   // Private, no copying.
    TVirtualMC(const TVirtualMC &mc);
    TVirtualMC & operator=(const TVirtualMC &);
 
-#if !defined(__CINT__)
-   static TMCThreadLocal TVirtualMC*  fgMC; ///< Monte Carlo singleton instance
-#else
-   static                TVirtualMC*  fgMC; ///< Monte Carlo singleton instance
-#endif
 
+ private:
+   Int_t               fId;      //!< Unique identification of this VMC
+                                 // (don't use TObject::SetUniqueId since this
+                                 // is used to uniquely identify TObjects in
+                                 // in general)
+                                 // An ID is given by the running TVirtualMCApp
+                                 // and not by the user.
    TVirtualMCStack*    fStack;   //!< Particles stack
    TVirtualMCDecayer*  fDecayer; //!< External decayer
    TRandom*            fRandom;  //!< Random number generator
    TVirtualMagField*   fMagField;//!< Magnetic field
+   TGeoMCBranchArrayContainer* fBranchArrayContainer; //!< Used to store
+                                                      //!< TGeoBranchArrays to
+                                                      //!< be able to restore
+                                                      //!< geometry states
+
 
    ClassDef(TVirtualMC,1)  //Interface to Monte Carlo
 };
@@ -952,4 +990,3 @@ inline Double_t TVirtualMC::NIELEdep() const
 #define gMC (TVirtualMC::GetMC())
 
 #endif //ROOT_TVirtualMC
-

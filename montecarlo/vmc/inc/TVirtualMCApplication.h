@@ -18,10 +18,15 @@
 // Interface to a user Monte Carlo application.
 //
 
+#include <functional>
+
 #include "TNamed.h"
 #include "TMath.h"
 
 #include "TMCtls.h"
+
+class TVirtualMC;
+class TParticle;
 
 class TVirtualMCApplication : public TNamed {
 
@@ -41,6 +46,17 @@ public:
    //
    // methods
    //
+
+   /// Return the current transport engine in use
+   /// \note This is static to ensure backwards compatibility with
+   /// TVirtualMC::GetMC()
+   static TVirtualMC* GetMCStatic();
+
+   /// Return the transport engine registered to this application
+   TVirtualMC* GetMC() const;
+
+   /// Register the transport engine and return ID.
+   virtual void RegisterMC(TVirtualMC* mc);
 
    /// Construct user geometry
    virtual void ConstructGeometry() = 0;
@@ -123,6 +139,16 @@ public:
    /// Merge the data accumulated on workers to the master if needed
    virtual void Merge(TVirtualMCApplication* /*localMCApplication*/) {}
 
+protected:
+   /// The current transport engine in use. \note This is static to ensure
+   /// backwards compatibility with TVirtualMC::GetMC() via
+   /// TVirtualMCApplication::GetMCStatic()
+   #if !defined(__CINT__)
+      static TMCThreadLocal TVirtualMC* fMC; ///< Singleton instance
+   #else
+      static                TVirtualMC* fMC; ///< Singleton instance
+   #endif
+
 private:
    // static data members
 #if !defined(__CINT__)
@@ -140,4 +166,3 @@ inline void TVirtualMCApplication::Field(const Double_t* /*x*/, Double_t* b) con
 }
 
 #endif //ROOT_TVirtualMCApplication
-
