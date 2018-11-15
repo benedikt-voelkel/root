@@ -27,6 +27,7 @@
 #include "TMCtls.h"
 #include "TVirtualMCApplication.h"
 #include "TVirtualMCStack.h"
+#include "TMCManagerStack.h"
 #include "TVirtualMCDecayer.h"
 #include "TVirtualMagField.h"
 #include "TRandom.h"
@@ -40,6 +41,10 @@ class TArrayD;
 class TVirtualMCSensitiveDetector;
 
 class TVirtualMC : public TNamed {
+
+  // Set friends so these can set the ID and pause transport via protected
+  // TVirtualMC::PauseTrack()
+  friend class TMCManager;
 
 public:
    /// Standard constructor
@@ -712,10 +717,14 @@ public:
 
    /// Return the current position in the master reference frame of the
    /// track being transported (as double)
+   virtual void     TrackPosition(Double_t &x, Double_t &y, Double_t &z, Double_t &t) const;
+   /// Only return spatial coordinates (as double)
    virtual void     TrackPosition(Double_t &x, Double_t &y, Double_t &z) const =0;
 
    /// Return the current position in the master reference frame of the
    /// track being transported (as float)
+   virtual void TrackPosition(Float_t &x, Float_t &y, Float_t &z, Float_t &t) const;
+   /// Only return spatial coordinates (as float)
    virtual void TrackPosition(Float_t &x, Float_t &y, Float_t &z) const =0;
 
    /// Return the direction and the momentum (GeV/c) of the track
@@ -744,6 +753,18 @@ public:
 
    /// Return the non-ionising energy lost (NIEL) in the current step
    virtual Double_t NIELEdep() const;
+
+   /// Return the current step number
+   virtual Int_t StepNumber() const;
+
+   /// Get the current weight
+   virtual Double_t TrackWeight() const;
+
+   /// Get the current polarization
+   virtual void TrackPolarization(Double_t &polX, Double_t &polY, Double_t &polZ) const;
+
+   /// Get the current polarization
+   virtual void TrackPolarization(TVector3& pol) const;
 
    //
    // get methods
@@ -834,12 +855,17 @@ public:
    virtual void BuildPhysics() = 0;
 
    /// Process one event
-   /// Deprecated
-   virtual void ProcessEvent() = 0;
+   virtual void ProcessEvent(Int_t eventId);
+
+   /// Process one event (backward-compatibility)
+   virtual void ProcessEvent();
 
    /// Process one  run and return true if run has finished successfully,
    /// return false in other cases (run aborted by user)
    virtual Bool_t ProcessRun(Int_t nevent) = 0;
+
+   /// Additional cleanup after a run can be done here (optional)
+   virtual void TerminateRun() {}
 
    /// Set switches for lego transport
    virtual void InitLego() = 0;
@@ -880,6 +906,9 @@ public:
     /// Return the particle stack
     TVirtualMCStack*   GetStack() const   { return fStack; }
 
+    /// Return the particle stack managed by the TMCManager (if any)
+    TMCManagerStack*   GetManagerStack() const { return fManagerStack; }
+
     /// Return the external decayer
     TVirtualMCDecayer* GetDecayer() const { return fDecayer; }
 
@@ -889,23 +918,85 @@ public:
     /// Return the magnetic field
     TVirtualMagField*  GetMagField() const  { return fMagField; }
 
-protected:
-   TVirtualMCApplication* fApplication; //!< User MC application
+    /// Return the VMC's ID
+    Int_t              GetId() const { return fId; }
+
+    /// Check whether external geometry construction should be used
+    Bool_t             UseExternalGeometryConstruction() const
+    {
+      return fUseExternalGeometryConstruction;
+    }
+
+    /// Check whether external particle generation should be used
+    Bool_t             UseExternalParticleGeneration() const
+    {
+      return fUseExternalParticleGeneration;
+    }
 
 private:
+
+   /// Set the VMC id
+   void SetId(UInt_t id);
+
+   /// Set container holding additional information for transported TParticles
+   void SetManagerStack(TMCManagerStack* stack);
+
+   /// Disables internal dispatch to TVirtualMCApplication::ConstructGeometry()
+   /// and hence rely on geometry construction being trigeered from outside.
+   void SetExternalGeometryConstruction(Bool_t value = kTRUE);
+
+   /// Disables internal dispatch to TVirtualMCApplication::GeneratePrimaries()
+   /// and tells the engine to not make any implicit assumptions on whether it's
+   /// a primary or a secondary. The track could have even been transported by
+   /// another engine to the current point.
+   void SetExternalParticleGeneration(Bool_t value = kTRUE);
+
+   /// An interruptible event can be paused and resumed at any time. It must not
+   /// call TVirtualMCApplication::BeginEvent() and ::FinishEvent()
+   /// Further, when tracks are popped from the TVirtualMCStack it must be
+   /// checked whether these are new tracks or whether they have been
+   /// transported up to their current point.
+   virtual void ProcessEvent(Int_t eventId, Bool_t isInterruptible = kFALSE);
+
+   /// That triggers stopping the transport of the current track without dispatching
+   /// to common routines like TVirtualMCApplication::PostTrack() etc.
+   virtual void InterruptTrack();
+
+   // Private, no copying.
    TVirtualMC(const TVirtualMC &mc);
    TVirtualMC & operator=(const TVirtualMC &);
 
-#if !defined(__CINT__)
-   static TMCThreadLocal TVirtualMC*  fgMC; ///< Monte Carlo singleton instance
-#else
-   static                TVirtualMC*  fgMC; ///< Monte Carlo singleton instance
-#endif
 
+ protected:
+    TVirtualMCApplication* fApplication; //!< User MC application
+
+  private:
+    #if !defined(__CINT__)
+       static TMCThreadLocal TVirtualMC* fgMC;; ///< Static TVirtualMC pointer
+    #else
+       static                TVirtualMC* fgMC;; ///< Static TVirtualMC pointer
+  #endif
+
+ private:
+   Int_t               fId;      //!< Unique identification of this VMC
+                                 // (don't use TObject::SetUniqueId since this
+                                 // is used to uniquely identify TObjects in
+                                 // in general)
+                                 // An ID is given by the running TVirtualMCApp
+                                 // and not by the user.
    TVirtualMCStack*    fStack;   //!< Particles stack
+   TMCManagerStack*    fManagerStack; //!< Stack handled by the TMCManager
    TVirtualMCDecayer*  fDecayer; //!< External decayer
    TRandom*            fRandom;  //!< Random number generator
    TVirtualMagField*   fMagField;//!< Magnetic field
+   Bool_t              fUseExternalGeometryConstruction; //!< Don't attempt to
+                                                         // call
+                                                         // TVirtualMCApplication
+                                                         // hooks related to geometry
+   // construction
+   Bool_t              fUseExternalParticleGeneration;
+
+
 
    ClassDef(TVirtualMC,1)  //Interface to Monte Carlo
 };
@@ -952,4 +1043,3 @@ inline Double_t TVirtualMC::NIELEdep() const
 #define gMC (TVirtualMC::GetMC())
 
 #endif //ROOT_TVirtualMC
-

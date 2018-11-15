@@ -56,6 +56,7 @@ public:
                            TMCProcess mech, Int_t& ntr, Double_t weight,
                            Int_t is) = 0;
 
+
    /// The stack has to provide two pop mechanisms:
    /// The first pop mechanism required.
    /// Pop all particles with toBeDone = 1, both primaries and seconadies
@@ -64,6 +65,15 @@ public:
    /// The second pop mechanism required.
    /// Pop only primary particles with toBeDone = 1, stacking of secondaries
    /// is done by MC
+   /// \note That is a misleading interface since one might assume that the
+   /// particle popped with index i has also the ID i. This is not necessarily
+   /// true because the internal stacking mechanism might be unknown to users as
+   /// well as to the TVirtualMC which might use this interface for popping.
+   /// It was used in TGeant4's TG4PrimaryGeneratorAction::TransformPrimaries as
+   /// if all particles on the stack were primaries because the indices were
+   /// derived from TVirtualMCStack::GetNtrack() which just returns the number
+   /// of all tracks.
+   /// Hence, this interface is inconsistent and should not be used.
    virtual TParticle* PopPrimaryForTracking(Int_t i) = 0;
 
    //

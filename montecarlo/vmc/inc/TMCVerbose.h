@@ -56,6 +56,9 @@ public:
    // set methods
    void  SetLevel(Int_t level);
 
+   // get methods
+   Int_t GetLevel() const;
+
 private:
    // methods
    void PrintBanner() const;
@@ -74,5 +77,7 @@ private:
 inline void  TMCVerbose::SetLevel(Int_t level)
 { fLevel = level; }
 
-#endif //ROOT_TMCVerbose
+inline Int_t  TMCVerbose::GetLevel() const
+{ return fLevel; }
 
+#endif //ROOT_TMCVerbose

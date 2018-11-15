@@ -18,10 +18,16 @@
 // Interface to a user Monte Carlo application.
 //
 
+#include <functional>
+
 #include "TNamed.h"
 #include "TMath.h"
 
 #include "TMCtls.h"
+
+class TVirtualMC;
+class TParticle;
+class TMCManager;
 
 class TVirtualMCApplication : public TNamed {
 
@@ -41,6 +47,15 @@ public:
    //
    // methods
    //
+
+   /// Request a TMCManager which is required if multiple engines should be run
+   void RequestMCManager();
+
+   /// Register the an engine.
+   void Register(TVirtualMC* mc);
+
+   /// Return the transport engine registered to this application
+   TVirtualMC* GetMC() const;
 
    /// Construct user geometry
    virtual void ConstructGeometry() = 0;
@@ -123,6 +138,15 @@ public:
    /// Merge the data accumulated on workers to the master if needed
    virtual void Merge(TVirtualMCApplication* /*localMCApplication*/) {}
 
+protected:
+  /// The current transport engine in use. In case of a multi-run the TMCManager
+  /// will update this whenever the engine changes.
+  TVirtualMC* fMC;
+
+  /// Pointer to requested TMCManager which will only be instantiated by a call
+  /// to RequestMCManager()
+  TMCManager* fMCManager;
+
 private:
    // static data members
 #if !defined(__CINT__)
@@ -130,6 +154,8 @@ private:
 #else
    static                TVirtualMCApplication* fgInstance; ///< Singleton instance
 #endif
+    /// Forbid multithreading mode if multi run via global static flag
+    static Bool_t fLockMultiThreading;
 
    ClassDef(TVirtualMCApplication,1)  //Interface to MonteCarlo application
 };
@@ -140,4 +166,3 @@ inline void TVirtualMCApplication::Field(const Double_t* /*x*/, Double_t* b) con
 }
 
 #endif //ROOT_TVirtualMCApplication
-

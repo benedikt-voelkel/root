@@ -10,6 +10,9 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
+#include "TError.h"
+#include "TParticle.h"
+#include "TMCParticleStatus.h"
 #include "TVirtualMCStack.h"
 
 /** \class TVirtualMCStack
