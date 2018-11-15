@@ -10,8 +10,10 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
-#include "TVirtualMCApplication.h"
+#include "TVirtualMCManager.h"
+#include "TMCManagerSingle.h"
 #include "TError.h"
+#include "TVirtualMCApplication.h"
 
 /** \class TVirtualMCApplication
     \ingroup vmc
@@ -33,12 +35,8 @@ TVirtualMCApplication::TVirtualMCApplication(const char *name,
                                              const char *title)
   : TNamed(name,title)
 {
-   if (fgInstance) {
-      Fatal("TVirtualMCApplication",
-            "Attempt to create two instances of singleton.");
-   }
-
-   fgInstance = this;
+   // This creates a basic manager
+   new TMCManagerSingle(this);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -49,7 +47,6 @@ TVirtualMCApplication::TVirtualMCApplication(const char *name,
 TVirtualMCApplication::TVirtualMCApplication()
   : TNamed()
 {
-   fgInstance = this;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -59,7 +56,6 @@ TVirtualMCApplication::TVirtualMCApplication()
 
 TVirtualMCApplication::~TVirtualMCApplication()
 {
-   fgInstance = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -69,5 +65,5 @@ TVirtualMCApplication::~TVirtualMCApplication()
 
 TVirtualMCApplication* TVirtualMCApplication::Instance()
 {
-  return fgInstance;
+  return TVirtualMCManager::GetApplicationStatic();
 }

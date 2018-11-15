@@ -10,6 +10,7 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
+#include "TVirtualMCManager.h"
 #include "TVirtualMC.h"
 
 /** \class TVirtualMC
@@ -30,8 +31,6 @@ when processing a ROOT macro where the concrete Monte Carlo is instantiated.
 
 ClassImp(TVirtualMC);
 
-TMCThreadLocal TVirtualMC* TVirtualMC::fgMC=0;
-
 ////////////////////////////////////////////////////////////////////////////////
 ///
 /// Standard constructor
@@ -40,25 +39,21 @@ TMCThreadLocal TVirtualMC* TVirtualMC::fgMC=0;
 TVirtualMC::TVirtualMC(const char *name, const char *title,
                        Bool_t /*isRootGeometrySupported*/)
   : TNamed(name,title),
-    fApplication(0),
+    fManager(0),
     fStack(0),
     fDecayer(0),
     fRandom(0),
     fMagField(0)
 {
-   if(fgMC) {
-      Warning("TVirtualMC","Cannot initialise twice MonteCarlo class");
-   } else {
-      fgMC=this;
+    fManager = TVirtualMCManager::Instance();
 
-      fApplication = TVirtualMCApplication::Instance();
-
-      if (!fApplication) {
-         Error("TVirtualMC", "No user MC application is defined.");
-      }
-
-      fRandom = gRandom;
-   }
+    if (!fManager) {
+       Fatal("TVirtualMC", "No TVirtualMCManager is defined.");
+    }
+    // Register this VMC to the running TVirtualMCManager and get
+    // assigned ID
+    fManager->RegisterMC(this);
+    fRandom = gRandom;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -68,7 +63,7 @@ TVirtualMC::TVirtualMC(const char *name, const char *title,
 
 TVirtualMC::TVirtualMC()
   : TNamed(),
-    fApplication(0),
+    fManager(0),
     fStack(0),
     fDecayer(0),
     fRandom(0),
@@ -83,7 +78,6 @@ TVirtualMC::TVirtualMC()
 
 TVirtualMC::~TVirtualMC()
 {
-   fgMC=0;
 }
 
 //
@@ -96,7 +90,31 @@ TVirtualMC::~TVirtualMC()
 ///
 
 TVirtualMC* TVirtualMC::GetMC() {
-   return fgMC;
+   return TVirtualMCManager::GetMCStatic();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Support this method for backwards compatibility in case the user wants to
+/// use this interface
+///
+
+void TVirtualMC::TrackPosition(Double_t &x, Double_t &y, Double_t &z,
+                               Double_t &t) const {
+   t = TrackTime();
+   TrackPosition(x, y, z);
+ }
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Support this method for backwards compatibility in case the user wants to
+/// use this interface
+///
+
+void TVirtualMC::TrackPosition(Float_t &x, Float_t &y, Float_t &z,
+                               Float_t &t) const {
+   t = static_cast<Float_t>(TrackTime());
+   TrackPosition(x, y, z);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -138,4 +156,34 @@ void TVirtualMC::SetRandom(TRandom* random)
 void TVirtualMC::SetMagField(TVirtualMagField* field)
 {
    fMagField = field;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Set the VMC id
+///
+
+void TVirtualMC::SetId(UInt_t id)
+{
+   fId = id;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Process one event (backwards compatibility)
+///
+
+void TVirtualMC::ProcessEvent()
+{
+   Info("ProcessEvent", "Not implemented.");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Process one event (backwards compatibility)
+///
+
+void TVirtualMC::ProcessEvent(Int_t eventId)
+{
+   ProcessEvent();
 }

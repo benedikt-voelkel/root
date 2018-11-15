@@ -123,14 +123,6 @@ public:
    /// Merge the data accumulated on workers to the master if needed
    virtual void Merge(TVirtualMCApplication* /*localMCApplication*/) {}
 
-private:
-   // static data members
-#if !defined(__CINT__)
-   static TMCThreadLocal TVirtualMCApplication* fgInstance; ///< Singleton instance
-#else
-   static                TVirtualMCApplication* fgInstance; ///< Singleton instance
-#endif
-
    ClassDef(TVirtualMCApplication,1)  //Interface to MonteCarlo application
 };
 
@@ -140,4 +132,3 @@ inline void TVirtualMCApplication::Field(const Double_t* /*x*/, Double_t* b) con
 }
 
 #endif //ROOT_TVirtualMCApplication
-

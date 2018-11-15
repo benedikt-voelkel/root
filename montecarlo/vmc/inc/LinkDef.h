@@ -17,9 +17,13 @@
 #pragma link C++ class TVirtualMC + ;
 #pragma link C++ class TVirtualMCGeometry + ;
 #pragma link C++ class TVirtualMCApplication + ;
+#pragma link C++ class TVirtualMCMultiApplication + ;
 #pragma link C++ class TVirtualMCSensitiveDetector + ;
+#pragma link C++ class TMCParticleStatus + ;
 #pragma link C++ class TVirtualMCStack + ;
+#pragma link C++ class TVirtualMCMultiStack + ;
 #pragma link C++ class TMCVerbose + ;
 #pragma link C++ class TGeoMCGeometry + ;
+#pragma link C++ class TGeoMCBranchArrayContainer + ;
 
 #endif
