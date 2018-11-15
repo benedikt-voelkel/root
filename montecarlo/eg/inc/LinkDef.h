@@ -15,6 +15,7 @@
 #pragma link off all functions;
 
 #pragma link C++ class TParticle-;
+#pragma link C++ class TTrack+;
 #pragma link C++ class TAttParticle+;
 #pragma link C++ class TPrimary+;
 #pragma link C++ class TGenerator+;

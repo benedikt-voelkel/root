@@ -712,11 +712,15 @@ public:
 
    /// Return the current position in the master reference frame of the
    /// track being transported (as double)
-   virtual void     TrackPosition(Double_t &x, Double_t &y, Double_t &z) const =0;
+   virtual void     TrackPosition(Double_t &x, Double_t &y, Double_t &z, Double_t &t) const =0;
+   /// Only return spatial coordinates (as double)
+   virtual void     TrackPosition(Double_t &x, Double_t &y, Double_t &z) const;
 
    /// Return the current position in the master reference frame of the
    /// track being transported (as float)
-   virtual void TrackPosition(Float_t &x, Float_t &y, Float_t &z) const =0;
+   virtual void TrackPosition(Float_t &x, Float_t &y, Float_t &z, Float_t &t) const =0;
+   /// Only return spatial coordinates (as float)
+   virtual void TrackPosition(Float_t &x, Float_t &y, Float_t &z) const;
 
    /// Return the direction and the momentum (GeV/c) of the track
    /// currently being transported
@@ -834,12 +838,14 @@ public:
    virtual void BuildPhysics() = 0;
 
    /// Process one event
-   /// Deprecated
-   virtual void ProcessEvent() = 0;
+   virtual void ProcessEvent(Int_t eventId) = 0;
 
    /// Process one  run and return true if run has finished successfully,
    /// return false in other cases (run aborted by user)
    virtual Bool_t ProcessRun(Int_t nevent) = 0;
+
+   /// Additional cleanup after a run can be done here (optional)
+   virtual void TerminateRun() {}
 
    /// Set switches for lego transport
    virtual void InitLego() = 0;
@@ -889,6 +895,9 @@ public:
     /// Return the magnetic field
     TVirtualMagField*  GetMagField() const  { return fMagField; }
 
+    /// Return the VMC's ID
+    Int_t              GetId() const { return fId; }
+
 protected:
    TVirtualMCApplication* fApplication; //!< User MC application
 
@@ -896,12 +905,13 @@ private:
    TVirtualMC(const TVirtualMC &mc);
    TVirtualMC & operator=(const TVirtualMC &);
 
-#if !defined(__CINT__)
-   static TMCThreadLocal TVirtualMC*  fgMC; ///< Monte Carlo singleton instance
-#else
-   static                TVirtualMC*  fgMC; ///< Monte Carlo singleton instance
-#endif
-
+ private:
+   Int_t               fId;      //!< Unique identification of this VMC
+                                 // (don't use TObject::SetUniqueId since this
+                                 // is used to uniquely identify TObjects in
+                                 // in general)
+                                 // An ID is given by the running TVirtualMCApp
+                                 // and not by the user.
    TVirtualMCStack*    fStack;   //!< Particles stack
    TVirtualMCDecayer*  fDecayer; //!< External decayer
    TRandom*            fRandom;  //!< Random number generator
@@ -952,4 +962,3 @@ inline Double_t TVirtualMC::NIELEdep() const
 #define gMC (TVirtualMC::GetMC())
 
 #endif //ROOT_TVirtualMC
-

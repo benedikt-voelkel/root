@@ -56,16 +56,41 @@ public:
                            TMCProcess mech, Int_t& ntr, Double_t weight,
                            Int_t is) = 0;
 
+    /// With geoStateIndex
+   virtual void PushTrack(Int_t toBeDone, Int_t parent, Int_t pdg,
+                          Double_t px, Double_t py, Double_t pz, Double_t e,
+                          Double_t vx, Double_t vy, Double_t vz, Double_t tof,
+                          Double_t polx, Double_t poly, Double_t polz,
+                          Int_t geoStateIndex, TMCProcess mech, Int_t& ntr,
+                          Double_t weight, Int_t is);
+
+
    /// The stack has to provide two pop mechanisms:
    /// The first pop mechanism required.
    /// Pop all particles with toBeDone = 1, both primaries and seconadies
    virtual TParticle* PopNextTrack(Int_t& itrack) = 0;
 
+   /// In case the geometry state index is managed by this stack
+   virtual TParticle* PopNextTrack(Int_t&  itrack, Int_t& geoStateIndex);
+
    /// The second pop mechanism required.
    /// Pop only primary particles with toBeDone = 1, stacking of secondaries
    /// is done by MC
+   /// \note That is a misleading interface since one might assume that the
+   /// particle popped with index i has also the ID i. This is not necessarily
+   /// true because the internal stacking mechanism might be unknown to users as
+   /// well as to the TVirtualMC which might use this interface for popping.
+   /// It was used in TGeant4's TG4PrimaryGeneratorAction::TransformPrimaries as
+   /// if all particles on the stack were primaries because the indices were
+   /// derived from TVirtualMCStack::GetNtrack() which just returns the number
+   /// of all tracks.
+   /// Hence, this interface is inconsistent and should not be used.
    virtual TParticle* PopPrimaryForTracking(Int_t i) = 0;
 
+   /// Don't assume that the primary at index i has ID i, secondaries might sit
+   /// in between
+   virtual TParticle* PopPrimaryForTracking(Int_t i, Int_t& itrack,
+                                            Int_t& geoStateIndex);
    //
    // Set methods
    //
