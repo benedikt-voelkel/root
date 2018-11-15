@@ -14,6 +14,7 @@
 #include "TVirtualMCMultiStack.h"
 #include "TVirtualMC.h"
 #include "TGeoManager.h"
+#include "TTrack.h"
 
 /** \class TVirtualMCMultiApplication
     \ingroup vmc
@@ -86,6 +87,21 @@ void TVirtualMCMultiApplication::SetStack(TVirtualMCMultiStack* stack)
   fStack = stack;
 }
 
+/// Set the function called in stepping to check whether a track needs to
+/// be moved
+void TVirtualMCMultiApplication::RegisterSuggestTrackForMoving(
+                       std::function<void(TVirtualMC*, TVirtualMC*&)> f)
+{
+  fStack->RegisterSuggestTrackForMoving(f);
+}
+
+/// Set the function called to decide to which stack a primary is pushed
+void TVirtualMCMultiApplication::RegisterSpecifyEngineForTrack(
+                       std::function<void(TTrack*, TVirtualMC*&)> f)
+{
+  fStack->RegisterSpecifyEngineForTrack(f);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 ///
 /// Do all initialisation steps at once
@@ -112,7 +128,7 @@ void TVirtualMCMultiApplication::InitTransport()
     mc->Init();
     mc->BuildPhysics();
     // Set the stack for this engine
-    mc->SetStack(fStack);
+    fStack->SetEngineStack(mc);
   }
 }
 
@@ -137,7 +153,7 @@ void TVirtualMCMultiApplication::RunTransport(Int_t nofEvents)
     GeneratePrimariesMulti();
     // Call user begin event action
     BeginEventMulti();
-    // Loop as long there are tracks in any TMCQueue
+    // Loop as long there are tracks in any engine stack
     while(GetNextEngine()) {
       fMC->ProcessEvent(i);
     }
@@ -156,11 +172,11 @@ void TVirtualMCMultiApplication::RunTransport(Int_t nofEvents)
 
 Bool_t TVirtualMCMultiApplication::GetNextEngine()
 {
-  // \note Kind of brute force selection by bjust checking the queue
+  // \note Kind of brute force selection by just checking the engine's stack
   for(auto& mc : fMCEngines) {
     if(fStack->HasTracks(mc)) {
       fMC = mc;
-      fStack->SetQueue(mc);
+      fStack->SetEngineStack(mc);
       // Set the current navigator for this engine.
       // \todo The following works since right now there is only one navigator.
       fStack->SetCurrentNavigator(gGeoManager->GetCurrentNavigator());

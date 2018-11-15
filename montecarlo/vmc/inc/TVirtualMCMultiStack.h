@@ -15,7 +15,7 @@
 
 // Class TVirtualMCMultiStack
 // ---------------------
-// Interface to a user defined particles stack as well as to TMCQueues of
+// Interface to a user defined particles stack managing sub-stacks of
 // different TVirtualMCs.
 //
 
@@ -31,12 +31,12 @@
 #include "TGeoBranchArray.h"
 
 #include "TVirtualMCStack.h"
+#include "TMCSimpleStack.h"
 
 class TTrack;
 class TParticle;
 class TVirtualMC;
 class TGeoStateCache;
-
 
 /// The transport status of a track.
 enum class ETrackTransportStatus : Int_t {kNew, kProcessing, kFinished};
@@ -45,7 +45,9 @@ class TVirtualMCMultiStack : public TVirtualMCStack {
 
 public:
 
-   // Destructor
+   /// Default constructor
+   TVirtualMCMultiStack();
+   /// Destructor
    ~TVirtualMCMultiStack();
 
    //
@@ -114,7 +116,7 @@ public:
    /// Get number of tracks which are only those to be tracked.
    Int_t GetNtrack() const override final;
 
-   /// Get the number of primaries
+   /// Get the number of primaries in current stack
    Int_t GetNprimary() const override final;
 
    /// Current track
@@ -145,12 +147,15 @@ public:
    void RegisterSuggestTrackForMoving(
                           std::function<void(TVirtualMC*, TVirtualMC*&)> f);
 
-   /// Set the function called to decide to which queue a primary is pushed
+   /// Set the function called to decide to which stack a primary is pushed
    void RegisterSpecifyEngineForTrack(
                           std::function<void(TTrack*, TVirtualMC*&)> f);
 
-   /// Assign a queue for a given engine
-   void SetQueue(TVirtualMC* mc);
+   /// Add a internal stack for an engine
+   void AddEngineStack(TVirtualMC* mc);
+
+   /// Add a stack for a given engine and set engine stack
+   void SetEngineStack(TVirtualMC* mc);
 
    /// Set the current navigator
    void SetCurrentNavigator(TGeoNavigator* navigator);
@@ -163,14 +168,12 @@ public:
    /// current engine
    void SuggestTrackForMoving(TVirtualMC* currentMC);
 
-   /// Reset internals, clear TMCQueues and fTracks and reset buffered values
+   /// Reset internals, clear engine stack and fTracks and reset buffered values
    void ResetInternals();
 
  private:
-   /// Constructor private for save singleton behaviour
-   TVirtualMCMultiStack();
-   /// Find the right queue to push this track to and push it
-   void PushToQueue(TTrack* track);
+   /// Find the right engine stack to push this track to and push it
+   void PushToInternalStack(TTrack* track);
    /// Insert a new transport status for a given track ID
    void InsertTrackTransportStatus(Int_t trackID, ETrackTransportStatus status);
 
@@ -205,13 +208,13 @@ public:
     std::function<void(TVirtualMC*, TVirtualMC*&)> fSuggestTrackForMoving;
     /// Decide where to push a track to which has not been transported
     std::function<void(TTrack*, TVirtualMC*&)>  fSpecifyEngineForTrack;
-    /// Mapping the pointers of TVirtualMC to their TMCQueue
-    std::map<TVirtualMC*, TObjArray*> fVMCToTracksMap;
-    /// The TMCQueue tracks are currently popped from
-    TObjArray* fCurrentQueue;
-    /// Mapping the pointers of TVirtualMC to number of primaries in their queue
+    /// Mapping the pointers of TVirtualMC to their stacks
+    std::map<TVirtualMC*, TMCSimpleStack<TTrack*>> fVMCToStackMap;
+    /// The stack tracks are currently popped from
+    TMCSimpleStack<TTrack*>* fCurrentStack;
+    /// Mapping the pointers of TVirtualMC to number of primaries in their stack
     std::map<TVirtualMC*, Int_t> fVMCToPrimariesMap;
-    /// The TMCQueue tracks are currently popped from
+    /// Number of primaries on current stack
     Int_t* fCurrentNPrimaries;
 
    ClassDefOverride(TVirtualMCMultiStack,1)

@@ -118,7 +118,7 @@ void TVirtualMC::TrackPosition(Double_t &x, Double_t &y, Double_t &z) const {
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
-/// Set individual particles queue for this VMC.
+/// Set particles stack for this VMC
 ///
 
 void TVirtualMC::SetStack(TVirtualMCStack* stack)

@@ -846,7 +846,7 @@ public:
    // ------------------------------------------------
    //
 
-   /// Set individual particles queue for this VMC
+   /// Set particles stack for this VMC
    virtual void SetStack(TVirtualMCStack* stack);
 
    /// Set the external decayer
@@ -864,7 +864,7 @@ public:
     // ------------------------------------------------
     //
 
-    /// Return individual particles queue for this VMC
+    /// Return particles stack of this VMC
     TVirtualMCStack*   GetStack() const   { return fStack; }
 
     /// Return the external decayer
@@ -883,7 +883,7 @@ private:
    TVirtualMC(const TVirtualMC &mc);
    TVirtualMC & operator=(const TVirtualMC &);
 
-   TVirtualMCStack*    fStack;   //!< Individual particles queue for this VMC
+   TVirtualMCStack*    fStack;   //!< Particles stack for this VMC
    TVirtualMCDecayer*  fDecayer; //!< External decayer
    TRandom*            fRandom;  //!< Random number generator
    TVirtualMagField*   fMagField;//!< Magnetic field

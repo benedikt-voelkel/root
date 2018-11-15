@@ -20,7 +20,7 @@
 #pragma link C++ class  TVirtualMCMultiApplication+;
 #pragma link C++ class  TVirtualMCStack+;
 #pragma link C++ class  TVirtualMCMultiStack+;
-#pragma link C++ class  TMCQueue+;
+#pragma link C++ class  TMCSimpleStack<TTrack*>+;
 #pragma link C++ class  TMCVerbose+;
 #pragma link C++ class  TGeoMCGeometry+;
 

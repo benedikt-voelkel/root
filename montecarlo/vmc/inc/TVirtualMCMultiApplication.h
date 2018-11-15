@@ -19,9 +19,12 @@
 // for the simulation setup.
 //
 
+#include <functional>
+
 #include "TVirtualMCApplication.h"
 
 class TVirtualMCMultiStack;
+class TTrack;
 
 class TVirtualMCMultiApplication : public TVirtualMCApplication {
 
@@ -43,6 +46,15 @@ public:
 
    /// Set the TVirtualMCMultiStack
    void SetStack(TVirtualMCMultiStack* stack);
+
+   /// Set the function called in stepping to check whether a track needs to
+   /// be moved
+   void RegisterSuggestTrackForMoving(
+                          std::function<void(TVirtualMC*, TVirtualMC*&)> f);
+
+   /// Set the function called to decide to which stack a primary is pushed
+   void RegisterSpecifyEngineForTrack(
+                          std::function<void(TTrack*, TVirtualMC*&)> f);
 
    /// Do all initialisation steps at once
    void InitTransport() override final;
