@@ -24,17 +24,21 @@
 #include "Rtypes.h"
 
 class TGeoBranchArray;
+class TGeoManager;
 
 class TGeoMCBranchArrayContainer
 {
   public:
-    /// Standard constructor
-    TGeoMCBranchArrayContainer(UInt_t size, UInt_t maxlevel = DEFAULT_MAX_LEVELS);
     /// Default constructor
     TGeoMCBranchArrayContainer();
     /// Destructor
     ~TGeoMCBranchArrayContainer();
 
+    /// Initialize manually specifying initial number of internal
+    /// TGeoBranchArray objects
+    void Initialize(Int_t maxlevels=100, Int_t size=8);
+    /// Initialize from TGeoManager to extract maxlevels
+    void InitializeFromGeoManager(TGeoManager* man, Int_t size=8);
     /// Clear the internal cache
     void ResetCache();
 
@@ -72,8 +76,8 @@ class TGeoMCBranchArrayContainer
     std::vector<Int_t> fFreeIndices;
     /// Flags to (un)lock indices
     std::vector<Bool_t> fIsIndexFree;
-    /// Constant default number of levels
-    static constexpr UInt_t DEFAULT_MAX_LEVELS = 100;
+    /// Flag if initialized
+    Bool_t fIsInitialized;
 
     ClassDefNV(TGeoMCBranchArrayContainer,1)
 };

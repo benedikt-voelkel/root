@@ -98,9 +98,10 @@ TVirtualMC* TVirtualMC::GetMC() {
 /// use this interface
 ///
 
-void TVirtualMC::TrackPosition(Double_t &x, Double_t &y, Double_t &z) const {
-   Double_t t = 0.;
-   TrackPosition(x, y, z, t);
+void TVirtualMC::TrackPosition(Double_t &x, Double_t &y, Double_t &z,
+                               Double_t &t) const {
+   t = TrackTime();
+   TrackPosition(x, y, z);
  }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -109,9 +110,10 @@ void TVirtualMC::TrackPosition(Double_t &x, Double_t &y, Double_t &z) const {
 /// use this interface
 ///
 
-void TVirtualMC::TrackPosition(Float_t &x, Float_t &y, Float_t &z) const {
-   Float_t t = 0.;
-   TrackPosition(x, y, z, t);
+void TVirtualMC::TrackPosition(Float_t &x, Float_t &y, Float_t &z,
+                               Float_t &t) const {
+   t = static_cast<Float_t>(TrackTime());
+   TrackPosition(x, y, z);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -163,4 +165,24 @@ void TVirtualMC::SetMagField(TVirtualMagField* field)
 void TVirtualMC::SetId(UInt_t id)
 {
    fId = id;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Process one event (backwards compatibility)
+///
+
+void TVirtualMC::ProcessEvent()
+{
+   Info("ProcessEvent", "Not implemented.");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Process one event (backwards compatibility)
+///
+
+void TVirtualMC::ProcessEvent(Int_t eventId)
+{
+   ProcessEvent();
 }

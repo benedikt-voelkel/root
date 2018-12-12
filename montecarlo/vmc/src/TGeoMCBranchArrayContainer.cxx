@@ -11,27 +11,46 @@
  *************************************************************************/
 
 #include "TGeoMCBranchArrayContainer.h"
+#include "TGeoManager.h"
 #include "TGeoBranchArray.h"
 #include "TError.h"
 
 ClassImp(TGeoMCBranchArrayContainer);
 
-TGeoMCBranchArrayContainer::TGeoMCBranchArrayContainer(UInt_t size, UInt_t maxLevel)
-  : fCacheSize(size), fInitCacheSize(size), fNextIndex(0), fCurrentIndex(-1),
-    fMaxLevels((maxLevel > 1) ? maxLevel : DEFAULT_MAX_LEVELS)
-{
-  // Now initialize
-  ResetCache();
-}
-
 TGeoMCBranchArrayContainer::TGeoMCBranchArrayContainer()
-  : TGeoMCBranchArrayContainer(0)
+  : fCacheSize(0), fInitCacheSize(0), fNextIndex(0), fCurrentIndex(-1),
+    fMaxLevels(0), fIsInitialized(kFALSE)
 {
 }
 
 TGeoMCBranchArrayContainer::~TGeoMCBranchArrayContainer()
 {
   ResetCache();
+}
+
+void TGeoMCBranchArrayContainer::Initialize(Int_t maxLevels, Int_t size)
+{
+  fCacheSize = size;
+  fMaxLevels = maxLevels;
+  if(fIsInitialized) {
+    ResetCache();
+  }
+  // All indices are free at this point.
+  fIsIndexFree.resize(fCacheSize, kTRUE);
+  // Reserve enough space so all indices could go here.
+  fFreeIndices.reserve(fCacheSize);
+  // Resize and fill the cache.
+  fCache.resize(fCacheSize);
+  for(UInt_t i = 0; i < fCacheSize; i++) {
+    fCache[i] = TGeoBranchArray::MakeInstance(fMaxLevels);
+    fCache[i]->SetUniqueID(i);
+  }
+  fIsInitialized = kTRUE;
+}
+
+void TGeoMCBranchArrayContainer::InitializeFromGeoManager(TGeoManager* man, Int_t size)
+{
+  Initialize(man->GetMaxLevels(), size);
 }
 
 void TGeoMCBranchArrayContainer::ResetCache()
@@ -46,20 +65,9 @@ void TGeoMCBranchArrayContainer::ResetCache()
   fIsIndexFree.clear();
   fFreeIndices.clear();
   // Set to initial values specified by the user previously.
-  fCacheSize = fInitCacheSize;
   fNextIndex = 0;
   fCurrentIndex = -1;
-
-  // All indices are free at this point.
-  fIsIndexFree.resize(fCacheSize, kTRUE);
-  // Reserve enough space so all indices could go here.
-  fFreeIndices.reserve(fCacheSize);
-  // Resize and fill the cache.
-  fCache.resize(fCacheSize);
-  for(UInt_t i = 0; i < fCacheSize; i++) {
-    fCache[i] = TGeoBranchArray::MakeInstance(fMaxLevels);
-    fCache[i]->SetUniqueID(i);
-  }
+  fIsInitialized = kFALSE;
 }
 
 TGeoBranchArray* TGeoMCBranchArrayContainer::GetNewGeoState(Int_t& index)

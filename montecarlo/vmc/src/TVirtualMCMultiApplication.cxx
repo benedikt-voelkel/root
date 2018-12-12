@@ -39,7 +39,7 @@ TVirtualMCMultiApplication::TVirtualMCMultiApplication(const char *name,
   : TVirtualMCApplication(name, title), fTargetMCCached(nullptr),
     fStack(nullptr), fCurrentPosition(TLorentzVector()),
     fCurrentMomentum(TLorentzVector()),
-    fBranchArrayContainer(TGeoMCBranchArrayContainer(8, 100)),
+    fBranchArrayContainer(),
     fCachedGeoState(nullptr), fCurrentNavigator(nullptr),
     fIsGeometryConstructed(kFALSE), fIsInitialized(kFALSE)
 {
@@ -148,6 +148,10 @@ void TVirtualMCMultiApplication::ConstructGlobalGeometry()
   // TODO Do these methods also need their "Multi" counter part?
   MisalignGeometryMulti();
   ConstructOpGeometryMulti();
+
+  // Initialize the branch array container from the TGeoManager to have
+  // matching number of maxlevels
+  fBranchArrayContainer.InitializeFromGeoManager(gGeoManager);
 
   fIsGeometryConstructed = kTRUE;
 }
