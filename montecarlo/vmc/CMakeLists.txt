@@ -18,6 +18,10 @@ ROOT_STANDARD_LIBRARY_PACKAGE(VMC
     TVirtualMC.h
     TVirtualMCSensitiveDetector.h
     TVirtualMCStack.h
+    TMCManager.h
+    TMCManagerStack.h
+    TGeoMCBranchArrayContainer.h
+    TMCParticleStatus.h
   SOURCES
     src/TGeoMCGeometry.cxx
     src/TMCAutoLock.cxx
@@ -27,6 +31,9 @@ ROOT_STANDARD_LIBRARY_PACKAGE(VMC
     src/TVirtualMCGeometry.cxx
     src/TVirtualMCSensitiveDetector.cxx
     src/TVirtualMCStack.cxx
+    src/TMCManager.cxx
+    src/TMCManagerStack.cxx
+    src/TGeoMCBranchArrayContainer.cxx
   DEPENDENCIES
     EG
     Geom
