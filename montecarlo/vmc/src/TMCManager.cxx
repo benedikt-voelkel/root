@@ -10,6 +10,8 @@
  * For the list of contributors see $ROOTSYS/README/CREDITS.             *
  *************************************************************************/
 
+#include <algorithm>
+
 #include "TError.h"
 #include "TVector3.h"
 #include "TLorentzVector.h"
@@ -45,7 +47,7 @@ TMCThreadLocal TMCManager *TMCManager::fgInstance = nullptr;
 
 TMCManager::TMCManager()
    : fApplication(nullptr), fCurrentEngine(nullptr), fTotalNPrimaries(0), fTotalNTracks(0), fUserStack(nullptr),
-     fBranchArrayContainer(), fIsInitialized(kFALSE), fIsInitializedUser(kFALSE)
+     fBranchArrayContainer(), fIsInitialized(kFALSE), fIsInitializedUser(kFALSE), fIsSameTrack(-1), fEnergyMax(0.)
 {
    if (fgInstance) {
       ::Fatal("TMCManager::TMCManager", "Attempt to create two instances of singleton.");
@@ -261,6 +263,8 @@ void TMCManager::ForwardTrack(Int_t toBeDone, Int_t trackId, Int_t parentId, TPa
          fStacks[engineId]->PushSecondaryTrackId(trackId);
       }
    }
+   fPushedToAnyStack.push_back(trackId);
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -323,6 +327,15 @@ void TMCManager::TransferTrack(TVirtualMC *mc)
       fStacks[mc->GetId()]->PushSecondaryTrackId(trackId);
    }
    fCurrentEngine->InterruptTrack();
+
+
+   // Monitor transferred tracks and whether they are transported as expected.
+   fPushedToAnyStack.push_back(trackId);
+   if(fLastEngineTransported.size() <= trackId) {
+     fLastEngineTransported.resize(trackId + 1, "");
+   }
+   fLastEngineTransported[trackId] = fCurrentEngine->GetName();
+   fIsSameTrack = -1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -354,6 +367,7 @@ void TMCManager::Init()
       // Connect the engine's stack to the centrally managed vectors
       fStacks[currentEngineId]->ConnectTrackContainers(&fParticles, &fParticlesStatus, &fBranchArrayContainer,
                                                        &fTotalNPrimaries, &fTotalNTracks);
+      fStacks[currentEngineId]->ConnectMonitorTrackContainers(&fPoppedFromAnyStack);
    }
 
    // Initialize the fBranchArrayContainer to manage and cache TGeoBranchArrays
@@ -401,6 +415,16 @@ void TMCManager::Run(Int_t nEvents)
    TerminateRun();
 }
 
+void TMCManager::Notify() {
+
+  if(fIsSameTrack == fUserStack->GetCurrentTrackNumber()) {
+    return;
+  }
+  std::cerr << "PUSHING BACK " << fUserStack->GetCurrentTrackNumber() << std::endl;
+  fTransportedAny.push_back(fUserStack->GetCurrentTrackNumber());
+  fIsSameTrack = fTransportedAny.back();
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 ///
 /// Choose next engines to be run in the loop
@@ -408,6 +432,51 @@ void TMCManager::Run(Int_t nEvents)
 
 void TMCManager::PrepareNewEvent()
 {
+
+  // In depth investigation of pushed and popped
+  std::sort(fPushedToAnyStack.begin(), fPushedToAnyStack.end());
+  std::sort(fPoppedFromAnyStack.begin(), fPoppedFromAnyStack.end());
+  std::sort(fTransportedAny.begin(), fTransportedAny.end());
+
+
+  if(fPushedToAnyStack != fPoppedFromAnyStack) {
+    ::Warning("TMCManager::PrepareNewEvent", "Different pushes and pops in last event");
+  }
+
+  if(fPoppedFromAnyStack != fTransportedAny) {
+    ::Warning("TMCManager::PrepareNewEvent", "Different pops and transports in last event");
+
+
+   std::vector<Int_t> diff;
+
+   std::set_difference(fPushedToAnyStack.begin(), fPushedToAnyStack.end(), fTransportedAny.begin(), fTransportedAny.end(),
+                       std::back_inserter( diff ));
+   std::cerr << diff.size() << std::endl;
+   std::cerr << "DIFF\n";
+   for(auto& i : diff) {
+     std::cerr << "Track ID " << i << "\n"
+               << "PDG: " << fParticles[i]->GetPdgCode() << "\n"
+               << "E " << fParticlesStatus[i]->fMomentum.Energy() << "\n"
+               << "Px " << fParticlesStatus[i]->fMomentum.X() << "\n"
+               << "Py " << fParticlesStatus[i]->fMomentum.Y() << "\n"
+               << "Pz " << fParticlesStatus[i]->fMomentum.Z() << "\n";
+
+               if(fParticlesStatus[i]->fMomentum.Energy() > fEnergyMax) {
+                 fEnergyMax = fParticlesStatus[i]->fMomentum.Energy();
+               }
+               if(fLastEngineTransported.size() > i) {
+                 std::cerr << "last transporting engine: " << fLastEngineTransported[i] << "\n";
+               }
+   }
+   std::cerr << "Max energy of stuck track " << fEnergyMax << std::endl;
+  }
+
+  fIsSameTrack = -1;
+  fPushedToAnyStack.clear();
+  fPoppedFromAnyStack.clear();
+  fTransportedAny.clear();
+  fLastEngineTransported.clear();
+
    fBranchArrayContainer.FreeGeoStates();
    // Reset in event flag for all engines and clear stacks
    for (auto &stack : fStacks) {
@@ -419,8 +488,18 @@ void TMCManager::PrepareNewEvent()
       fParticles[i] = nullptr;
    }
 
+
+   std::cerr << "Check for incomplete transport" << std::endl;
+   // Check whether tehre were tracks transferred
+   if(fPushedToAnyStack.size() != fPoppedFromAnyStack.size()) {
+     ::Warning("TMCManager::PrepareNewEvent", "%i particles were pushed but %i particles were popped",
+                                              static_cast<int>(fPushedToAnyStack.size()),
+                                              static_cast<int>(fPoppedFromAnyStack.size()));
+   }
+
    // GeneratePrimaries centrally
    fApplication->GeneratePrimaries();
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -430,6 +509,7 @@ void TMCManager::PrepareNewEvent()
 
 Bool_t TMCManager::GetNextEngine()
 {
+   fIsSameTrack = -1;
    // Select next engine based on finite number of particles on the stack
    for (UInt_t i = 0; i < fStacks.size(); i++) {
       if (fStacks[i]->GetStackedNtrack() > 0) {

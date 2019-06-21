@@ -105,6 +105,9 @@ public:
    /// Transfer track from current engine to target engine mc
    void TransferTrack(TVirtualMC *mc);
 
+   /// NOTE Only to monitor
+   void Notify();
+
    //
    // Steering and control
    //
@@ -187,6 +190,22 @@ private:
    Bool_t fIsInitialized;
    /// Flag if specific initialization for engines was done
    Bool_t fIsInitializedUser;
+
+   /// Monitor what was pushed
+   std::vector<Int_t> fPushedToAnyStack;
+
+   /// Monitor what was popped
+   std::vector<Int_t> fPoppedFromAnyStack;
+
+   /// Monitor what is transported
+   std::vector<Int_t> fTransportedAny;
+   Int_t fIsSameTrack;
+
+   /// Monitor engine which last transported a track
+   std::vector<std::string> fLastEngineTransported;
+
+   /// Monitor max energy of stuck tracks
+   Double_t fEnergyMax;
 
    ClassDef(TMCManager, 0)
 };

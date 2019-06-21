@@ -68,6 +68,7 @@ TParticle *TMCManagerStack::PopNextTrack(Int_t &itrack)
    }
    itrack = mcStack->top();
    mcStack->pop();
+   fPoppedFromAnyStack->push_back(itrack);
    return fParticles->operator[](itrack);
 }
 
@@ -99,6 +100,7 @@ TParticle *TMCManagerStack::PopPrimaryForTracking(Int_t i, Int_t &itrack)
    }
    itrack = fPrimariesStack.top();
    fPrimariesStack.pop();
+   fPoppedFromAnyStack->push_back(itrack);
    return fParticles->operator[](itrack);
 }
 
@@ -220,6 +222,27 @@ const TGeoBranchArray *TMCManagerStack::GetGeoState(Int_t trackId) const
 
 ////////////////////////////////////////////////////////////////////////////////
 ///
+/// Get current particle's geometry status
+///
+
+const TGeoBranchArray *TMCManagerStack::GetCurrentGeoState() const
+{
+   return fBranchArrayContainer->GetGeoState(fParticlesStatus->operator[](fCurrentTrackId)->fGeoStateIndex);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// To free the cached geo state which was associated to the current track
+///
+
+void TMCManagerStack::NotifyOnRestoredGeometry()
+{
+   fBranchArrayContainer->FreeGeoState(fParticlesStatus->operator[](fCurrentTrackId)->fGeoStateIndex);
+   fParticlesStatus->operator[](fCurrentTrackId)->fGeoStateIndex = 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
 /// To free the cached geo state which was associated to a track
 ///
 
@@ -229,15 +252,7 @@ void TMCManagerStack::NotifyOnRestoredGeometry(Int_t trackId)
       Fatal("NotifyOnRestoredGeometry", "Invalid track ID %i", trackId);
    }
    fBranchArrayContainer->FreeGeoState(fParticlesStatus->operator[](trackId)->fGeoStateIndex);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-///
-/// To free the cached geo state which was associated to a track
-///
-void TMCManagerStack::NotifyOnRestoredGeometry(const TGeoBranchArray *geoState)
-{
-   fBranchArrayContainer->FreeGeoState(geoState);
+   fParticlesStatus->operator[](trackId)->fGeoStateIndex = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -278,6 +293,16 @@ void TMCManagerStack::ConnectTrackContainers(std::vector<TParticle *> *particles
    fBranchArrayContainer = branchArrayContainer;
    fTotalNPrimaries = totalNPrimaries;
    fTotalNTracks = totalNTracks;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+///
+/// Set pointers to monitor tracks containers
+///
+
+void TMCManagerStack::ConnectMonitorTrackContainers(std::vector<Int_t>* poppedFromAnyStack)
+{
+   fPoppedFromAnyStack = poppedFromAnyStack;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

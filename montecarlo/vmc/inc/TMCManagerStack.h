@@ -108,14 +108,17 @@ public:
    /// Get particle's geometry status by trackId
    const TGeoBranchArray *GetGeoState(Int_t trackId) const;
 
+   /// Get current particle's geometry status
+   const TGeoBranchArray *GetCurrentGeoState() const;
+
    //
    // Action methods
    //
 
    /// To free the cached geo state which was associated to a track
    void NotifyOnRestoredGeometry(Int_t trackId);
-   /// To free the cached geo state which was associated to a track
-   void NotifyOnRestoredGeometry(const TGeoBranchArray *geoState);
+   /// To free the cached geo state which was associated to the current track
+   void NotifyOnRestoredGeometry();
 
 private:
    friend class TMCManager;
@@ -128,6 +131,8 @@ private:
                                std::vector<std::unique_ptr<TMCParticleStatus>> *tracksStatus,
                                TGeoMCBranchArrayContainer *branchArrayContainer, Int_t *totalNPrimaries,
                                Int_t *totalNTracks);
+   /// Set pointers to monitor tracks containers
+   void ConnectMonitorTrackContainers(std::vector<Int_t>* poppedFromAnyStack);
    /// Push primary id to be processed
    void PushPrimaryTrackId(Int_t trackId);
    /// Push secondary id to be processed
@@ -154,6 +159,8 @@ private:
    std::stack<Int_t> fPrimariesStack;
    /// IDs of secondaries to be trackedk
    std::stack<Int_t> fSecondariesStack;
+   /// Monitor what was popped
+   std::vector<Int_t>* fPoppedFromAnyStack;
 
    ClassDefOverride(TMCManagerStack, 1)
 };
